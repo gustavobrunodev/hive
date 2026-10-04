@@ -4559,3 +4559,47 @@ Validação: `verify` verde (248 arquivos, **4448** testes), design system verde
 (`SwatchPicker` novo, 8 testes), sonda `initiatives-round-contrast.mjs` com
 **75 alvos × 3 temas sem reprovações**, e `initiatives-contrast.mjs` (herdada)
 sem regressão.
+
+## Design Studio no Hive — lote 1: entrada e navegação do módulo (2026-10-04)
+
+Tarefa `.tasks/design-studio-a-modulo-e-dados-de-dor.md`, checklist em
+`.checks/` (os dois fora do git). O módulo é uma `WorkView` (`'design'`), aberta
+pela linha "Design Studio" logo abaixo de "+ Novo"; com ele em frente, o corpo
+da aba Chat & Cowork vira a navegação dele, e Iniciativas e Conversas ficam
+montadas embaixo (`designStudio/ChatTabBody.tsx`).
+
+- **O estado do módulo mora no `WorkUI`, num hook só** (`useDesignStudio`):
+  rota, páginas montadas, a rota com que cada página foi aberta por último e as
+  conversas de Recentes. Uma chamada de hook e uma função de módulo
+  (`designNavVisible`) — o `WorkUI` continua no teto do compilador, e o lint
+  saiu sem nenhum `Existing memoization could not be preserved` novo.
+- **Mecanismo do critério 4 (prova no lote 3):** cada página é uma camada que
+  rola sozinha e nunca desmonta (`visibility`), dentro da camada `design` do
+  painel de trabalho, que também não desmonta. A rota fica acima das duas, então
+  sair para o transcrito e voltar acha tudo como estava; reiniciar é montagem
+  nova, então o módulo reabre no Início (critério 5) sem persistir rota.
+- **Recentes vem do main** (`window.hive.designStudio.conversations()`): cada
+  pasta de `<raiz>` é um Produto, e cada uma é uma chave do `chatHistoryStore`.
+  O renderer não sabe onde fica `<raiz>`.
+- **O rodapé do perfil entrou no `SidebarHost` (`foot`)**, para que "todo corpo
+  acima do perfil" seja do host e não de cada chamador — e para que o C2d possa
+  provar a ordem no arranjo real.
+- **O selo "Dados de exemplo" só aparece no cabeçalho quando a navegação some**
+  (lateral oculta ou aba Arquivos), como no protótipo: o fato fica na tela uma
+  vez só.
+
+### Lições
+
+- **`--muted` sobre o tint `--selected-bg` reprova a 12px no claro** (4,14:1).
+  A linha aberta de Recentes leva a tinta de acento no meta, como o histórico do
+  Hive. É a mesma classe de defeito do tint já registrada — e só o C7b achou.
+- **`locator.focus()` logo após um clique não liga `:focus-visible`.** A
+  modalidade ainda é ponteiro, e o anel corretamente não aparece; chegar pelo
+  Tab (a partir de "+ Novo") é como o usuário de teclado chega.
+- **O sampler de contraste deduplica por (cor, fundo, tamanho, peso).** Uma lista
+  de "papéis que precisam ter sido medidos" tem de excluir o papel que divide o
+  par com outro, senão reprova a amostragem, não a cor.
+- **Os títulos `h1` usam `--ff-body` (Inter), e o corpo usa a pilha do sistema
+  começando por Inter.** Sem Inter instalada (WSL, e Windows sem a fonte), os
+  títulos caem em Helvetica/Arial e o corpo em Segoe/Ubuntu — vale para todo
+  título do Hive, não só do módulo. Achado, não corrigido aqui.

@@ -806,3 +806,21 @@ distinguir ausência deliberada de esquecimento.
 antes desta rodada — 87,46%, medido com as mudanças removidas — e fechou em
 87,52%. Não é regressão desta rodada e não foi ampliada; é o análogo, no DS, dos
 14 arquivos herdados do app.
+
+### Controles novos — Design Studio no Hive, lote 1: entrada e navegação do módulo (2026-10-04)
+
+| # | Controle | Onde | O que ele pegou / por que existe |
+| --- | --- | --- | --- |
+| — | `designStudio/dsOnly.test.ts` (C8a) — nenhuma cor literal nem `font-family` fora de `var(--ff-*)` em `src/renderer/src/designStudio/` | `src/renderer/src/designStudio/` | O módulo é o protótipo de validação refeito com os valores do DS do Hive, e o protótipo pintava com laranja e fontes próprios. Um valor literal é um que o tema não alcança — e todo defeito de contraste deste repo apareceu num tema só. Testa o próprio scanner em fixtures (um guard que não casa nada passaria por cima de um diretório cheio de literais) e lê o próprio arquivo, por isso os padrões são escritos de forma a não casarem consigo mesmos. Lição paga na escrita: com o `\s*` **fora** do lookahead, `font-family: var(--ff-body)` reprovava — o `\s*` recua para zero e o lookahead testa `" var(…"`. |
+| — | Gate de cobertura per-file de `src/renderer/src/designStudio/**` e `src/main/designStudio/**` (90) | `vitest.config.ts` | Diretórios inteiros, para que o arquivo que os lotes 2 e 3 criarem entre no gate no dia em que nascer. |
+| — | `e2e/design-studio-modulo.spec.ts` — C3b, C5b, C7a, C8b no Electron real | `e2e/` | O que só o layout e o reinício respondem: o `scrollTop` da lista de Conversas e a release expandida em Iniciativas depois de entrar e sair do módulo; o Início do módulo depois de fechar e reabrir; Tab alcançando todo controle do módulo com indicador de foco calculado, Enter e Espaço acionando cada botão; e nenhum estilo calculado com o laranja ou as fontes do protótipo, com a cor resolvida por canvas. As tabelas de cena são estendidas pelos lotes 2 e 3. |
+| — | `contrast.spec.ts › C7b, C7c` — texto a 4,5:1, ícones e marca de "atual" a 3:1, claro e escuro | `e2e/` | Achou **um defeito real** na primeira execução: o meta da conversa aberta em Recentes (`--muted` sobre o tint `--selected-bg`) medindo **4,14:1** no claro. Corrigido com a tinta de acento, como as linhas do histórico do Hive já fazem. A lista de papéis exigidos exclui `ds-nav-sample` de propósito: o sampler mede cada (cor, fundo, tamanho, peso) uma vez, e esse par é o mesmo do `ds-recente-meta`. |
+| ⚠ | Todo launch do E2E aponta `HIVE_E2E_DOCUMENTS` para uma pasta descartável do caso | `e2e/fixtures/workspace.ts` | A raiz do Design Studio fica nos Documentos (Landing 3). Sem isso, a primeira spec que abrisse o módulo depois do lote 2 (que cria as pastas dos Produtos ao abrir) escreveria nos Documentos de quem roda a suíte. `SeededWorkspace` ganhou `documents`. |
+| ⚠ | `boot.mjs` ganhou `designStudio.conversations` e `window.__setDesignConversations` | `tools/visual/boot.mjs` | A regra de sempre: o mock envelhece junto com a bridge, e a falha é muda — sem o namespace, abrir o módulo no passe derruba a árvore inteira. |
+| — | `tools/visual/design-studio-pass.mjs` + `design-studio-contrast.mjs` | `tools/visual/` | O passe visual do lote (capturas das páginas com e sem lateral) e uma sonda de contraste que roda em **qualquer** tema — o gate da tarefa mede claro e escuro; o `hive` é achado, não critério, e mediu **89 alvos sem reprovação** nos três. |
+
+**Armadilha de sonda desta rodada:** `locator.focus()` logo depois de um clique
+não liga `:focus-visible` no Chromium — a modalidade ainda é ponteiro, e o
+indicador de foco **corretamente** não aparece. O C7a chega à linha "Design
+Studio" com Tab a partir de "+ Novo", como um usuário de teclado chega; o foco
+programático só vale depois que uma tecla já foi pressionada.

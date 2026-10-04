@@ -14,6 +14,7 @@
 //   window.__fsChange(p)  — one workspace filesystem event
 //   window.__agentEvent(e)— one agent stream event
 //   window.__setReview(s) — push a pending Agent Change Review set
+//   window.__setDesignConversations(rows) — the Design Studio's "Recentes"
 async (page) => {
   const theme = globalThis.HIVE_THEME || 'dark'
   const sidebarView = globalThis.HIVE_SIDEBAR || 'explorer'
@@ -900,6 +901,24 @@ async (page) => {
     // the in-chat change card can be looked at without a real turn on disk.
     const reviewListeners = []
     state.review = { changes: [], turns: [] }
+    state.designConversations = [
+      ['ds1', 'Câmbio', 'Por que o estorno não avisa o cliente?', 4],
+      ['ds2', 'Extrato', 'Histórico que não passa de 90 dias', 95],
+      ['ds3', 'Pix', 'Compare as três Fontes', 60 * 26]
+    ].map(([id, produto, title, minutesAgo]) => ({
+      id,
+      produto,
+      title,
+      createdAt: Date.now() - minutesAgo * 60_000 - 60_000,
+      updatedAt: Date.now() - minutesAgo * 60_000,
+      messageCount: 2,
+      agent: 'claude-cli',
+      preview: title,
+      initiativePath: null
+    }))
+    window.__setDesignConversations = (rows) => {
+      state.designConversations = rows
+    }
     window.__setReview = (snapshot) => {
       state.review = snapshot
       for (const cb of reviewListeners) cb({ workspace: '/ws', ...snapshot })
@@ -1398,6 +1417,13 @@ async (page) => {
             if (i >= 0) mcpListeners.splice(i, 1)
           }
         }
+      },
+      // Design Studio: "Recentes" — the module's conversations, each tagged
+      // with its Produto folder. Three, spread over the Produtos, so the list
+      // has rows to measure; `window.__setDesignConversations(rows)` swaps them
+      // (an empty array is the "Nenhuma conversa ainda" state).
+      designStudio: {
+        conversations: () => Promise.resolve(state.designConversations)
       },
       chatHistory: {
         // The full `ChatSessionMeta` the history rows render — a list that
