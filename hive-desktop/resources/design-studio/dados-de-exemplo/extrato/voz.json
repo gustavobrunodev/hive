@@ -1,0 +1,1801 @@
+{
+  "formato": "dados-de-exemplo/1",
+  "produto": "Extrato",
+  "fonte": "voz",
+  "volume": 4870,
+  "categorias": [
+    {
+      "id": "historico",
+      "nome": "Período e histórico",
+      "padrao": "O limite de 90 dias leva o cliente a ligar para pedir extratos e comprovantes antigos.",
+      "sugestao": "Liberar a escolha de período até 5 anos, com atalhos para mês e ano."
+    },
+    {
+      "id": "busca",
+      "nome": "Busca e identificação",
+      "padrao": "O cliente não reconhece o lançamento, tenta buscar, não acha e liga.",
+      "sugestao": "Buscar por valor e por nome da loja, e mostrar o nome comercial no lançamento."
+    },
+    {
+      "id": "lista",
+      "nome": "Lista e saldos",
+      "padrao": "Saldos parecidos e lançamentos repetidos confundem quem confere a conta.",
+      "sugestao": "Separar saldo do dia e saldo disponível, e explicar lançamentos repetidos."
+    },
+    {
+      "id": "exportar",
+      "nome": "Exportação e documentos",
+      "padrao": "Exportar é difícil de achar e falha justamente em períodos longos, como o do imposto de renda.",
+      "sugestao": "Pôr o exportar no topo do extrato e gerar o informe anual pronto."
+    }
+  ],
+  "temas": [
+    {
+      "id": "comprovante-antigo",
+      "titulo": "Preciso de um comprovante de Pix de mais de 90 dias",
+      "resumo": "Cliente liga para pedir comprovantes antigos que o app não alcança.",
+      "tela": "Comprovante",
+      "categoria": "historico",
+      "motivo": "Segunda via de comprovante"
+    },
+    {
+      "id": "lancamento-duplicado",
+      "titulo": "Lançamento duplicado no extrato",
+      "resumo": "Compras aparecem duas vezes enquanto uma delas ainda está pendente.",
+      "tela": "Extrato",
+      "categoria": "lista",
+      "motivo": "Lançamento duplicado"
+    },
+    {
+      "id": "compra-desconhecida",
+      "titulo": "Não reconheço uma compra",
+      "resumo": "Descrição do lançamento não identifica a loja; o cliente liga achando que é fraude.",
+      "tela": "Detalhe",
+      "categoria": "busca",
+      "motivo": "Contestação de compra"
+    },
+    {
+      "id": "extrato-anual",
+      "titulo": "Extrato anual para o imposto de renda",
+      "resumo": "Pedido de extrato consolidado do ano, que o app não gera.",
+      "tela": "Exportar",
+      "categoria": "exportar",
+      "motivo": "Informe e extrato anual"
+    },
+    {
+      "id": "tarifa-sem-aviso",
+      "titulo": "Tarifa cobrada sem aviso",
+      "resumo": "Tarifa de pacote aparece no extrato sem explicação.",
+      "tela": "Extrato",
+      "categoria": "lista",
+      "motivo": "Tarifas"
+    },
+    {
+      "id": "saldo-bloqueado",
+      "titulo": "Parte do saldo aparece bloqueada sem explicação",
+      "resumo": "Valores reservados por compras pendentes reduzem o saldo sem aviso.",
+      "tela": "Extrato",
+      "categoria": "lista",
+      "motivo": "Saldo bloqueado"
+    },
+    {
+      "id": "estorno-nao-aparece",
+      "titulo": "O estorno da compra não aparece no extrato",
+      "resumo": "A loja diz que estornou, e o extrato não mostra o crédito.",
+      "tela": "Detalhe",
+      "categoria": "busca",
+      "motivo": "Estorno de compra"
+    },
+    {
+      "id": "informe-rendimentos",
+      "titulo": "Não acho o informe de rendimentos",
+      "resumo": "O informe existe, mas fica em outro menu que o cliente não associa ao extrato.",
+      "tela": null,
+      "categoria": "exportar",
+      "motivo": "Informe de rendimentos"
+    }
+  ],
+  "registros": [
+    {
+      "id": "VC-extrato-comprovante-antigo-00",
+      "diasAtras": 89,
+      "tema": "comprovante-antigo",
+      "peso": 17,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-00",
+      "diasAtras": 89,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-00",
+      "diasAtras": 89,
+      "tema": "lancamento-duplicado",
+      "peso": 7,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-01",
+      "diasAtras": 89,
+      "tema": "saldo-bloqueado",
+      "peso": 14,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-00",
+      "diasAtras": 88,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-01",
+      "diasAtras": 88,
+      "tema": "informe-rendimentos",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-00",
+      "diasAtras": 88,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-00",
+      "diasAtras": 87,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-01",
+      "diasAtras": 87,
+      "tema": "comprovante-antigo",
+      "peso": 63,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-00",
+      "diasAtras": 87,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-geral-0",
+      "diasAtras": 87,
+      "tema": null,
+      "peso": 100,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-01",
+      "diasAtras": 87,
+      "tema": "tarifa-sem-aviso",
+      "peso": 19,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-01",
+      "diasAtras": 86,
+      "tema": "extrato-anual",
+      "peso": 31,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-01",
+      "diasAtras": 85,
+      "tema": "compra-desconhecida",
+      "peso": 37,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-01",
+      "diasAtras": 85,
+      "tema": "estorno-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-00",
+      "diasAtras": 85,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-01",
+      "diasAtras": 84,
+      "tema": "lancamento-duplicado",
+      "peso": 35,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-11",
+      "diasAtras": 83,
+      "tema": "lancamento-duplicado",
+      "peso": 35,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-10",
+      "diasAtras": 83,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-10",
+      "diasAtras": 82,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-10",
+      "diasAtras": 82,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-geral-1",
+      "diasAtras": 82,
+      "tema": null,
+      "peso": 97,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-11",
+      "diasAtras": 81,
+      "tema": "comprovante-antigo",
+      "peso": 62,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-11",
+      "diasAtras": 81,
+      "tema": "extrato-anual",
+      "peso": 29,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-11",
+      "diasAtras": 81,
+      "tema": "saldo-bloqueado",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-10",
+      "diasAtras": 81,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-10",
+      "diasAtras": 79,
+      "tema": "comprovante-antigo",
+      "peso": 16,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-10",
+      "diasAtras": 79,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-11",
+      "diasAtras": 79,
+      "tema": "informe-rendimentos",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-11",
+      "diasAtras": 79,
+      "tema": "tarifa-sem-aviso",
+      "peso": 20,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-10",
+      "diasAtras": 78,
+      "tema": "lancamento-duplicado",
+      "peso": 7,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-11",
+      "diasAtras": 77,
+      "tema": "compra-desconhecida",
+      "peso": 40,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-11",
+      "diasAtras": 77,
+      "tema": "estorno-nao-aparece",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-10",
+      "diasAtras": 77,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-geral-2",
+      "diasAtras": 76,
+      "tema": null,
+      "peso": 109,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-20",
+      "diasAtras": 75,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-21",
+      "diasAtras": 75,
+      "tema": "informe-rendimentos",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-21",
+      "diasAtras": 74,
+      "tema": "tarifa-sem-aviso",
+      "peso": 22,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-20",
+      "diasAtras": 73,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-20",
+      "diasAtras": 73,
+      "tema": "comprovante-antigo",
+      "peso": 16,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-21",
+      "diasAtras": 73,
+      "tema": "extrato-anual",
+      "peso": 29,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-21",
+      "diasAtras": 73,
+      "tema": "lancamento-duplicado",
+      "peso": 40,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-21",
+      "diasAtras": 73,
+      "tema": "saldo-bloqueado",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-20",
+      "diasAtras": 72,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-20",
+      "diasAtras": 72,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-21",
+      "diasAtras": 71,
+      "tema": "compra-desconhecida",
+      "peso": 42,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-21",
+      "diasAtras": 71,
+      "tema": "comprovante-antigo",
+      "peso": 61,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-20",
+      "diasAtras": 71,
+      "tema": "lancamento-duplicado",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-20",
+      "diasAtras": 71,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-21",
+      "diasAtras": 70,
+      "tema": "estorno-nao-aparece",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-20",
+      "diasAtras": 70,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-30",
+      "diasAtras": 69,
+      "tema": "comprovante-antigo",
+      "peso": 15,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-30",
+      "diasAtras": 69,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-30",
+      "diasAtras": 69,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-30",
+      "diasAtras": 68,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-31",
+      "diasAtras": 67,
+      "tema": "extrato-anual",
+      "peso": 26,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-31",
+      "diasAtras": 67,
+      "tema": "saldo-bloqueado",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-30",
+      "diasAtras": 66,
+      "tema": "lancamento-duplicado",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-30",
+      "diasAtras": 65,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-31",
+      "diasAtras": 65,
+      "tema": "informe-rendimentos",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-30",
+      "diasAtras": 65,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-31",
+      "diasAtras": 64,
+      "tema": "comprovante-antigo",
+      "peso": 57,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-31",
+      "diasAtras": 64,
+      "tema": "estorno-nao-aparece",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-geral-3",
+      "diasAtras": 64,
+      "tema": null,
+      "peso": 109,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-31",
+      "diasAtras": 64,
+      "tema": "lancamento-duplicado",
+      "peso": 40,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-31",
+      "diasAtras": 63,
+      "tema": "compra-desconhecida",
+      "peso": 43,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-30",
+      "diasAtras": 63,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-31",
+      "diasAtras": 63,
+      "tema": "tarifa-sem-aviso",
+      "peso": 20,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-41",
+      "diasAtras": 62,
+      "tema": "estorno-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-41",
+      "diasAtras": 62,
+      "tema": "extrato-anual",
+      "peso": 28,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-40",
+      "diasAtras": 62,
+      "tema": "lancamento-duplicado",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-41",
+      "diasAtras": 61,
+      "tema": "saldo-bloqueado",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-geral-4",
+      "diasAtras": 60,
+      "tema": null,
+      "peso": 110,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-41",
+      "diasAtras": 60,
+      "tema": "tarifa-sem-aviso",
+      "peso": 20,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-40",
+      "diasAtras": 59,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-40",
+      "diasAtras": 59,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-40",
+      "diasAtras": 59,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-40",
+      "diasAtras": 58,
+      "tema": "comprovante-antigo",
+      "peso": 17,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-40",
+      "diasAtras": 58,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-41",
+      "diasAtras": 57,
+      "tema": "compra-desconhecida",
+      "peso": 37,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-40",
+      "diasAtras": 57,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-40",
+      "diasAtras": 57,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-41",
+      "diasAtras": 57,
+      "tema": "informe-rendimentos",
+      "peso": 8,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-41",
+      "diasAtras": 57,
+      "tema": "lancamento-duplicado",
+      "peso": 41,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-41",
+      "diasAtras": 56,
+      "tema": "comprovante-antigo",
+      "peso": 62,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-50",
+      "diasAtras": 55,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-50",
+      "diasAtras": 55,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-geral-5",
+      "diasAtras": 55,
+      "tema": null,
+      "peso": 94,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-50",
+      "diasAtras": 55,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-50",
+      "diasAtras": 54,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-51",
+      "diasAtras": 53,
+      "tema": "saldo-bloqueado",
+      "peso": 14,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-50",
+      "diasAtras": 53,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-51",
+      "diasAtras": 51,
+      "tema": "compra-desconhecida",
+      "peso": 40,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-51",
+      "diasAtras": 51,
+      "tema": "comprovante-antigo",
+      "peso": 70,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-50",
+      "diasAtras": 51,
+      "tema": "lancamento-duplicado",
+      "peso": 7,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-51",
+      "diasAtras": 51,
+      "tema": "tarifa-sem-aviso",
+      "peso": 18,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-51",
+      "diasAtras": 50,
+      "tema": "estorno-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-51",
+      "diasAtras": 50,
+      "tema": "extrato-anual",
+      "peso": 31,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-50",
+      "diasAtras": 49,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-50",
+      "diasAtras": 49,
+      "tema": "comprovante-antigo",
+      "peso": 18,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-51",
+      "diasAtras": 49,
+      "tema": "informe-rendimentos",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-51",
+      "diasAtras": 49,
+      "tema": "lancamento-duplicado",
+      "peso": 36,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-61",
+      "diasAtras": 48,
+      "tema": "compra-desconhecida",
+      "peso": 40,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-60",
+      "diasAtras": 48,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-61",
+      "diasAtras": 47,
+      "tema": "estorno-nao-aparece",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-61",
+      "diasAtras": 47,
+      "tema": "extrato-anual",
+      "peso": 30,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-60",
+      "diasAtras": 47,
+      "tema": "lancamento-duplicado",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-61",
+      "diasAtras": 47,
+      "tema": "saldo-bloqueado",
+      "peso": 14,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-60",
+      "diasAtras": 45,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-60",
+      "diasAtras": 44,
+      "tema": "comprovante-antigo",
+      "peso": 18,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-60",
+      "diasAtras": 44,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-60",
+      "diasAtras": 43,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-61",
+      "diasAtras": 43,
+      "tema": "tarifa-sem-aviso",
+      "peso": 21,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-61",
+      "diasAtras": 42,
+      "tema": "comprovante-antigo",
+      "peso": 70,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-60",
+      "diasAtras": 42,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-60",
+      "diasAtras": 42,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-geral-6",
+      "diasAtras": 42,
+      "tema": null,
+      "peso": 104,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-61",
+      "diasAtras": 42,
+      "tema": "informe-rendimentos",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-61",
+      "diasAtras": 42,
+      "tema": "lancamento-duplicado",
+      "peso": 40,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-71",
+      "diasAtras": 41,
+      "tema": "comprovante-antigo",
+      "peso": 68,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-71",
+      "diasAtras": 40,
+      "tema": "estorno-nao-aparece",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-71",
+      "diasAtras": 40,
+      "tema": "extrato-anual",
+      "peso": 29,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-71",
+      "diasAtras": 40,
+      "tema": "lancamento-duplicado",
+      "peso": 41,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-71",
+      "diasAtras": 40,
+      "tema": "tarifa-sem-aviso",
+      "peso": 21,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-70",
+      "diasAtras": 39,
+      "tema": "comprovante-antigo",
+      "peso": 18,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-70",
+      "diasAtras": 39,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-70",
+      "diasAtras": 38,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-70",
+      "diasAtras": 38,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-71",
+      "diasAtras": 38,
+      "tema": "informe-rendimentos",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-71",
+      "diasAtras": 37,
+      "tema": "compra-desconhecida",
+      "peso": 45,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-geral-7",
+      "diasAtras": 37,
+      "tema": null,
+      "peso": 104,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-71",
+      "diasAtras": 37,
+      "tema": "saldo-bloqueado",
+      "peso": 14,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-70",
+      "diasAtras": 36,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-70",
+      "diasAtras": 35,
+      "tema": "compra-desconhecida",
+      "peso": 5,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-70",
+      "diasAtras": 35,
+      "tema": "lancamento-duplicado",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-70",
+      "diasAtras": 35,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-81",
+      "diasAtras": 34,
+      "tema": "compra-desconhecida",
+      "peso": 41,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-80",
+      "diasAtras": 34,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-80",
+      "diasAtras": 34,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-80",
+      "diasAtras": 33,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-geral-8",
+      "diasAtras": 33,
+      "tema": null,
+      "peso": 115,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-80",
+      "diasAtras": 31,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-81",
+      "diasAtras": 31,
+      "tema": "extrato-anual",
+      "peso": 26,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-80",
+      "diasAtras": 31,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-80",
+      "diasAtras": 30,
+      "tema": "comprovante-antigo",
+      "peso": 17,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-81",
+      "diasAtras": 30,
+      "tema": "lancamento-duplicado",
+      "peso": 45,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-80",
+      "diasAtras": 29,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-81",
+      "diasAtras": 29,
+      "tema": "estorno-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-81",
+      "diasAtras": 29,
+      "tema": "informe-rendimentos",
+      "peso": 8,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-81",
+      "diasAtras": 29,
+      "tema": "saldo-bloqueado",
+      "peso": 16,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-81",
+      "diasAtras": 29,
+      "tema": "tarifa-sem-aviso",
+      "peso": 21,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-81",
+      "diasAtras": 28,
+      "tema": "comprovante-antigo",
+      "peso": 63,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-80",
+      "diasAtras": 28,
+      "tema": "lancamento-duplicado",
+      "peso": 9,
+      "rechamada": true
+    },
+    {
+      "id": "VC-59433",
+      "diasAtras": 26,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "14:22",
+      "duracao": "3 min 48 s",
+      "trechos": [
+        {
+          "t": "00:29",
+          "quem": "Cliente",
+          "texto": "Apareceu uma tarifa de 39,90 que eu não sei de onde veio."
+        }
+      ]
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-91",
+      "diasAtras": 26,
+      "tema": "compra-desconhecida",
+      "peso": 41,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-91",
+      "diasAtras": 26,
+      "tema": "extrato-anual",
+      "peso": 30,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-90",
+      "diasAtras": 25,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-90",
+      "diasAtras": 25,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-59612",
+      "diasAtras": 24,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "09:20",
+      "duracao": "3 min 15 s",
+      "trechos": [
+        {
+          "t": "00:17",
+          "quem": "Cliente",
+          "texto": "Onde fica o informe de rendimentos? Procurei no extrato e não achei."
+        }
+      ]
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-90",
+      "diasAtras": 24,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-90",
+      "diasAtras": 24,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-91",
+      "diasAtras": 24,
+      "tema": "informe-rendimentos",
+      "peso": 8,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-90",
+      "diasAtras": 24,
+      "tema": "lancamento-duplicado",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-91",
+      "diasAtras": 23,
+      "tema": "comprovante-antigo",
+      "peso": 73,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-91",
+      "diasAtras": 23,
+      "tema": "estorno-nao-aparece",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-91",
+      "diasAtras": 23,
+      "tema": "saldo-bloqueado",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-91",
+      "diasAtras": 23,
+      "tema": "tarifa-sem-aviso",
+      "peso": 18,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-90",
+      "diasAtras": 22,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-91",
+      "diasAtras": 22,
+      "tema": "lancamento-duplicado",
+      "peso": 40,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-90",
+      "diasAtras": 21,
+      "tema": "comprovante-antigo",
+      "peso": 19,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-90",
+      "diasAtras": 21,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-geral-9",
+      "diasAtras": 21,
+      "tema": null,
+      "peso": 102,
+      "rechamada": false
+    },
+    {
+      "id": "VC-59870",
+      "diasAtras": 20,
+      "tema": "extrato-anual",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "10:15",
+      "duracao": "4 min 55 s",
+      "trechos": [
+        {
+          "t": "00:40",
+          "quem": "Cliente",
+          "texto": "Meu contador pediu o extrato do ano todo. O app não deixa."
+        }
+      ]
+    },
+    {
+      "id": "VC-extrato-extrato-anual-101",
+      "diasAtras": 20,
+      "tema": "extrato-anual",
+      "peso": 30,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-100",
+      "diasAtras": 20,
+      "tema": "lancamento-duplicado",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-101",
+      "diasAtras": 20,
+      "tema": "tarifa-sem-aviso",
+      "peso": 20,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-100",
+      "diasAtras": 19,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-101",
+      "diasAtras": 19,
+      "tema": "estorno-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-101",
+      "diasAtras": 19,
+      "tema": "saldo-bloqueado",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-101",
+      "diasAtras": 18,
+      "tema": "comprovante-antigo",
+      "peso": 74,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-100",
+      "diasAtras": 18,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-101",
+      "diasAtras": 18,
+      "tema": "lancamento-duplicado",
+      "peso": 40,
+      "rechamada": false
+    },
+    {
+      "id": "VC-60102",
+      "diasAtras": 17,
+      "tema": "compra-desconhecida",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "19:44",
+      "duracao": "7 min 30 s",
+      "trechos": [
+        {
+          "t": "00:51",
+          "quem": "Cliente",
+          "texto": "Tem um débito de 89 reais com um nome estranho. Eu não fiz essa compra."
+        }
+      ]
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-100",
+      "diasAtras": 17,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-geral-10",
+      "diasAtras": 17,
+      "tema": null,
+      "peso": 100,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-100",
+      "diasAtras": 16,
+      "tema": "comprovante-antigo",
+      "peso": 20,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-101",
+      "diasAtras": 16,
+      "tema": "informe-rendimentos",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-60321",
+      "diasAtras": 15,
+      "tema": "estorno-nao-aparece",
+      "peso": 1,
+      "rechamada": true,
+      "hora": "16:58",
+      "duracao": "6 min 22 s",
+      "trechos": [
+        {
+          "t": "00:44",
+          "quem": "Cliente",
+          "texto": "A loja me mandou o comprovante do estorno e no meu extrato não aparece nada."
+        }
+      ]
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-100",
+      "diasAtras": 15,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-60455",
+      "diasAtras": 14,
+      "tema": "lancamento-duplicado",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "12:08",
+      "duracao": "6 min 01 s",
+      "trechos": [
+        {
+          "t": "00:26",
+          "quem": "Cliente",
+          "texto": "Paguei uma vez e aparece duas no extrato. Fui cobrado em dobro?"
+        }
+      ]
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-101",
+      "diasAtras": 14,
+      "tema": "compra-desconhecida",
+      "peso": 38,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-100",
+      "diasAtras": 14,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-100",
+      "diasAtras": 14,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-110",
+      "diasAtras": 13,
+      "tema": "compra-desconhecida",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-111",
+      "diasAtras": 13,
+      "tema": "extrato-anual",
+      "peso": 32,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-110",
+      "diasAtras": 13,
+      "tema": "lancamento-duplicado",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-110",
+      "diasAtras": 13,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-60730",
+      "diasAtras": 12,
+      "tema": "saldo-bloqueado",
+      "peso": 1,
+      "rechamada": true,
+      "hora": "11:37",
+      "duracao": "5 min 10 s",
+      "trechos": [
+        {
+          "t": "00:21",
+          "quem": "Cliente",
+          "texto": "Tenho mil reais na conta mas só posso usar oitocentos. Cadê o resto?"
+        }
+      ]
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-111",
+      "diasAtras": 12,
+      "tema": "informe-rendimentos",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-60871",
+      "diasAtras": 11,
+      "tema": "comprovante-antigo",
+      "peso": 1,
+      "rechamada": true,
+      "hora": "17:26",
+      "duracao": "4 min 12 s",
+      "trechos": [
+        {
+          "t": "00:37",
+          "quem": "Cliente",
+          "texto": "Já liguei semana passada e o comprovante não chegou."
+        }
+      ]
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-111",
+      "diasAtras": 11,
+      "tema": "compra-desconhecida",
+      "peso": 44,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-111",
+      "diasAtras": 11,
+      "tema": "saldo-bloqueado",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-110",
+      "diasAtras": 10,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-110",
+      "diasAtras": 9,
+      "tema": "comprovante-antigo",
+      "peso": 21,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-110",
+      "diasAtras": 9,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-111",
+      "diasAtras": 8,
+      "tema": "estorno-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-110",
+      "diasAtras": 8,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-geral-11",
+      "diasAtras": 8,
+      "tema": null,
+      "peso": 99,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-111",
+      "diasAtras": 8,
+      "tema": "lancamento-duplicado",
+      "peso": 41,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-111",
+      "diasAtras": 8,
+      "tema": "tarifa-sem-aviso",
+      "peso": 21,
+      "rechamada": false
+    },
+    {
+      "id": "VC-61204",
+      "diasAtras": 7,
+      "tema": "comprovante-antigo",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "09:51",
+      "duracao": "5 min 40 s",
+      "trechos": [
+        {
+          "t": "00:19",
+          "quem": "Cliente",
+          "texto": "O condomínio diz que não recebeu o Pix de abril e eu preciso do comprovante."
+        },
+        {
+          "t": "00:44",
+          "quem": "Cliente",
+          "texto": "No app só vai até julho. Onde eu acho o de abril?"
+        },
+        {
+          "t": "01:10",
+          "quem": "Atendente",
+          "texto": "Consigo enviar por e-mail em até dois dias úteis."
+        }
+      ]
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-111",
+      "diasAtras": 7,
+      "tema": "comprovante-antigo",
+      "peso": 80,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-110",
+      "diasAtras": 7,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-extrato-anual-121",
+      "diasAtras": 6,
+      "tema": "extrato-anual",
+      "peso": 24,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-geral-12",
+      "diasAtras": 6,
+      "tema": null,
+      "peso": 110,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-120",
+      "diasAtras": 6,
+      "tema": "saldo-bloqueado",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-121",
+      "diasAtras": 5,
+      "tema": "informe-rendimentos",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-121",
+      "diasAtras": 4,
+      "tema": "comprovante-antigo",
+      "peso": 70,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-121",
+      "diasAtras": 4,
+      "tema": "estorno-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-extrato-anual-120",
+      "diasAtras": 4,
+      "tema": "extrato-anual",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-120",
+      "diasAtras": 4,
+      "tema": "lancamento-duplicado",
+      "peso": 9,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-saldo-bloqueado-121",
+      "diasAtras": 4,
+      "tema": "saldo-bloqueado",
+      "peso": 16,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-121",
+      "diasAtras": 3,
+      "tema": "compra-desconhecida",
+      "peso": 45,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-informe-rendimentos-120",
+      "diasAtras": 3,
+      "tema": "informe-rendimentos",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-120",
+      "diasAtras": 3,
+      "tema": "tarifa-sem-aviso",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-comprovante-antigo-120",
+      "diasAtras": 2,
+      "tema": "comprovante-antigo",
+      "peso": 19,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-estorno-nao-aparece-120",
+      "diasAtras": 2,
+      "tema": "estorno-nao-aparece",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-lancamento-duplicado-121",
+      "diasAtras": 2,
+      "tema": "lancamento-duplicado",
+      "peso": 45,
+      "rechamada": false
+    },
+    {
+      "id": "VC-extrato-compra-desconhecida-120",
+      "diasAtras": 1,
+      "tema": "compra-desconhecida",
+      "peso": 5,
+      "rechamada": true
+    },
+    {
+      "id": "VC-extrato-tarifa-sem-aviso-121",
+      "diasAtras": 1,
+      "tema": "tarifa-sem-aviso",
+      "peso": 22,
+      "rechamada": false
+    }
+  ]
+}

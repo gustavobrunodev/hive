@@ -20,8 +20,15 @@ import { APP_ID, APP_NAME } from './appIdentity'
 import { createConfigStore } from './configStore'
 import { migrateUserData } from './userDataMigration'
 import { createChatHistoryStore, type StoredCompaction } from './chatHistoryStore'
-import { resolveDataRoot } from './designStudio/dataRoot'
+import { ensureProdutoFolders, resolveDataRoot, resolveResourcesDir } from './designStudio/dataRoot'
 import { listModuleConversations } from './designStudio/conversations'
+import { readCatalogo, type Catalogo } from './designStudio/catalogo'
+import { latestRelatorios, relatorioAt } from './designStudio/relatorios'
+import {
+  createGenerationService,
+  type EventoDeGeracao,
+  type PedidoDeGeracao
+} from './designStudio/relatorioGeracao'
 import { createWorkspaceService } from './workspaceService'
 import { createFsService, ConflictError, type FsChangeEvent } from './fsService'
 import { createProcessRunner } from './processRunner'
@@ -661,6 +668,37 @@ app.whenReady().then(() => {
   const shells = createShellService(configStore, agentRegistry)
   shellService = shells
   const agentService = createAgentService(agentRegistry)
+
+  // Design Studio (Landing 3, 6, 11, 18, 19): the module's data root — resolved
+  // once, the Documents folder does not move while the app runs — its embedded
+  // resources, and the one Relatório being generated. Created here, beside the
+  // agent service, because the generation watches every turn's terminal event
+  // and `agent:stop` has to reach it.
+  const designStudioRoot = resolveDataRoot(app.getPath('documents'))
+  const designStudioResources = resolveResourcesDir({
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    // Unpackaged, `app.getAppPath()` is the built entry's folder when the app
+    // is launched with that file (the E2E): the app root is two levels up.
+    appPath: app.isPackaged ? app.getAppPath() : join(__dirname, '..', '..')
+  })
+  let designStudioCatalogo: Catalogo | null = null
+  const designStudioCatalog = (): Catalogo => {
+    designStudioCatalogo ??= readCatalogo(designStudioResources)
+    return designStudioCatalogo
+  }
+  const designStudioGeneration = createGenerationService({
+    root: designStudioRoot,
+    resources: designStudioResources,
+    catalogo: designStudioCatalog,
+    // A fact about the app, not about a subscription: every live window hears it.
+    emit: (evento: EventoDeGeracao) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        const contents = window.webContents
+        if (!contents.isDestroyed()) contents.send('designStudio:geracao', evento)
+      }
+    }
+  })
   // agent-onboarding: `npm i -g` for the agent CLIs the picker offers to
   // install. Holds the **unwrapped** runner on purpose — the E2E seam
   // redirects agent-CLI spawns to a stand-in binary, and an install is npm,
@@ -1186,6 +1224,9 @@ app.whenReady().then(() => {
   // cleanup so a switched-away-from workspace's session doesn't keep
   // running orphaned when no new session immediately replaces it.
   ipcMain.handle('agent:stop', async () => {
+    // Stopping the pool silences its event pumps first, so a generation in
+    // flight would never hear its turn end: it ends here, as interrupted.
+    designStudioGeneration.interrupt()
     agentService.stop()
   })
   // aws-bedrock: the AWS session surface.
@@ -1764,13 +1805,33 @@ app.whenReady().then(() => {
     chatHistoryStore.remove(workspace, id)
   )
 
-  // Design Studio (Landing 3, 10, 11): the module's own data root, resolved
-  // once — the Documents folder does not move while the app runs — and the
-  // conversations "Recentes" lists, one history workspace per Produto folder.
-  const designStudioRoot = resolveDataRoot(app.getPath('documents'))
+  // Design Studio (Landing 10): the conversations "Recentes" lists, one
+  // history workspace per Produto folder.
   ipcMain.handle('designStudio:conversations', async () =>
     listModuleConversations(chatHistoryStore, designStudioRoot)
   )
+  // Design Studio (Landing 19): what the pages read. Opening the module makes
+  // sure every Produto has its folder (criterion 10); the Relatórios are the
+  // most recent valid one of each Produto × Fonte, read fresh every time — a
+  // generation, or a file the PM dropped in, shows on the next read.
+  ipcMain.handle('designStudio:dados', async () => {
+    const catalogo = designStudioCatalog()
+    ensureProdutoFolders(designStudioRoot, catalogo.produtos)
+    return { catalogo, relatorios: latestRelatorios(designStudioRoot, catalogo) }
+  })
+  ipcMain.handle('designStudio:relatorio', async (_event, caminho: unknown) =>
+    typeof caminho === 'string' ? relatorioAt(designStudioRoot, caminho) : null
+  )
+  ipcMain.handle('designStudio:planejarGeracao', async (_event, pedido: PedidoDeGeracao) =>
+    designStudioGeneration.plan(pedido)
+  )
+  ipcMain.handle('designStudio:abandonarGeracao', async (_event, turnId: string) =>
+    designStudioGeneration.abandon(turnId)
+  )
+  ipcMain.handle('designStudio:geracaoAtual', async () => designStudioGeneration.current())
+  // The generation's own subscription — never the renderer's: the window has
+  // one agent-event subscription, and the Chat owns it (Landing 19).
+  agentService.onEvent((agentEvent: AgentEvent) => designStudioGeneration.onAgentEvent(agentEvent))
 
   // WorkflowCatalog (T17): request/response, same shape as fs:listTree/
   // fs:readFile above — a one-shot list, not a stream. Exposed as

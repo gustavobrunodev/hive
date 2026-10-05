@@ -948,7 +948,15 @@ function createHiveMock(): Window['hive'] {
     // Design Studio: "Recentes" — the module's conversations, read when the
     // module comes to the front.
     designStudio: {
-      conversations: vi.fn(async () => [])
+      conversations: vi.fn(async () => []),
+      // The pages' data and the generation (Landing 19): never answered here,
+      // so every page stays in its loading state.
+      dados: vi.fn(() => new Promise(() => {})),
+      relatorio: vi.fn(async () => null),
+      planejarGeracao: vi.fn(),
+      abandonarGeracao: vi.fn(async () => undefined),
+      geracaoAtual: vi.fn(async () => null),
+      onGeracao: vi.fn(() => () => {})
     },
     getRecentWorkspaces: vi.fn(async () => []),
     openWorkspace: vi.fn(async (path: string) => ({ ok: true, path })),

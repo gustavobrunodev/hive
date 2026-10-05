@@ -38,6 +38,13 @@ import type {
 } from '../main/configStore'
 import type { ChatSessionMeta, StoredChatSession, StoredCompaction } from '../main/chatHistoryStore'
 import type { ModuleConversationMeta } from '../main/designStudio/conversations'
+import type { Catalogo } from '../main/designStudio/catalogo'
+import type { RelatorioDeFonte } from '../main/designStudio/relatorioFormato'
+import type {
+  EventoDeGeracao,
+  PedidoDeGeracao,
+  PlanoDeGeracao
+} from '../main/designStudio/relatorioGeracao'
 import type { AppInfo, UpdateEvent } from '../main/updateService'
 import type {
   GitBranches,
@@ -441,7 +448,33 @@ const hive = {
   // so the renderer asks for the listing rather than for the path (Landing 10).
   designStudio: {
     conversations: (): Promise<ModuleConversationMeta[]> =>
-      ipcRenderer.invoke('designStudio:conversations')
+      ipcRenderer.invoke('designStudio:conversations'),
+    // The catalog and the Relatórios in use — the most recent valid one of
+    // each Produto × Fonte (Landing 19). Opening the module is also what
+    // creates the Produto folders.
+    dados: (): Promise<{ catalogo: Catalogo; relatorios: RelatorioDeFonte[] }> =>
+      ipcRenderer.invoke('designStudio:dados'),
+    // One Relatório by its path relative to `<raiz>`; `null` when it is gone.
+    relatorio: (caminho: string): Promise<RelatorioDeFonte | null> =>
+      ipcRenderer.invoke('designStudio:relatorio', caminho),
+    // A generation's plan — the turn id, the prompt and the scope the renderer
+    // hands to `agent.send` — or `ocupado` while another one runs.
+    planejarGeracao: (pedido: PedidoDeGeracao): Promise<PlanoDeGeracao> =>
+      ipcRenderer.invoke('designStudio:planejarGeracao', pedido),
+    abandonarGeracao: (turnId: string): Promise<void> =>
+      ipcRenderer.invoke('designStudio:abandonarGeracao', turnId),
+    geracaoAtual: (): Promise<EventoDeGeracao | null> =>
+      ipcRenderer.invoke('designStudio:geracaoAtual'),
+    // The generation's life, broadcast by main to every window. A listener of
+    // its own: no start/stop handshake, so one surface's unsubscribe can never
+    // silence another's.
+    onGeracao: (onEvent: (evento: EventoDeGeracao) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, evento: EventoDeGeracao): void => onEvent(evento)
+      ipcRenderer.on('designStudio:geracao', listener)
+      return () => {
+        ipcRenderer.removeListener('designStudio:geracao', listener)
+      }
+    }
   },
 
   // App self-update (app-settings): version info as plain invoke/response;

@@ -232,7 +232,16 @@ describe('App — first-run workspace gate + guided install + update gate (T6, T
       },
       mcpLogs: createHiveMcpLogsMock(),
       // Design Studio: the module's "Recentes" listing.
-      designStudio: { conversations: vi.fn().mockResolvedValue([]) },
+      designStudio: {
+        conversations: vi.fn().mockResolvedValue([]),
+        // The pages' data and the generation (Landing 19): never answered here.
+        dados: vi.fn(() => new Promise<never>(() => {})),
+        relatorio: vi.fn().mockResolvedValue(null),
+        planejarGeracao: vi.fn(),
+        abandonarGeracao: vi.fn(),
+        geracaoAtual: vi.fn().mockResolvedValue(null),
+        onGeracao: vi.fn(() => () => {})
+      },
       chatHistory: {
         list: vi.fn().mockResolvedValue([]),
         get: vi.fn().mockResolvedValue(null),

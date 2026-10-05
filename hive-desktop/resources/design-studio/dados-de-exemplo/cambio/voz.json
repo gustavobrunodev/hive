@@ -1,0 +1,1588 @@
+{
+  "formato": "dados-de-exemplo/1",
+  "produto": "Câmbio",
+  "fonte": "voz",
+  "volume": 3205,
+  "categorias": [
+    {
+      "id": "status",
+      "nome": "Status e avisos",
+      "padrao": "O cliente descobre o que aconteceu com a remessa fora do app: no extrato, pelo beneficiário ou ligando.",
+      "sugestao": "Mostrar cada etapa do envio e avisar na hora em que algo dá errado, com o motivo e o que fazer."
+    },
+    {
+      "id": "cotacao",
+      "nome": "Cotação e taxas",
+      "padrao": "A taxa muda entre simular e confirmar, e o custo total só aparece no fim.",
+      "sugestao": "Travar a cotação por alguns minutos e mostrar o total debitado desde a simulação."
+    },
+    {
+      "id": "beneficiario",
+      "nome": "Cadastro do beneficiário",
+      "padrao": "SWIFT, IBAN e endereço numa tela só fazem o cliente desistir ou errar os dados.",
+      "sugestao": "Dividir o cadastro em passos curtos e validar o IBAN enquanto o cliente digita."
+    },
+    {
+      "id": "confirmacao",
+      "nome": "Confirmação e limites",
+      "padrao": "O botão de confirmar fica inativo sem dizer o que falta, e o limite só aparece tarde.",
+      "sugestao": "Dizer o que falta antes do toque e mostrar o limite já na simulação."
+    },
+    {
+      "id": "comprovante",
+      "nome": "Comprovantes",
+      "padrao": "Quem paga estudos ou aluguel fora precisa do comprovante e não acha onde baixar.",
+      "sugestao": "Deixar o comprovante em PDF a um toque, na própria tela de acompanhamento."
+    }
+  ],
+  "temas": [
+    {
+      "id": "estorno-sem-aviso",
+      "titulo": "Minha transação de câmbio estornou e não recebi nenhuma notificação",
+      "resumo": "A remessa volta para a conta quando o banco do beneficiário recusa os dados, e o cliente só descobre olhando o extrato.",
+      "tela": "Acompanhar",
+      "categoria": "status",
+      "motivo": "Estorno de remessa"
+    },
+    {
+      "id": "motivo-recusa",
+      "titulo": "Não entendo o motivo da remessa recusada",
+      "resumo": "O app mostra só “recusada”, sem dizer o que o cliente precisa corrigir.",
+      "tela": "Acompanhar",
+      "categoria": "status",
+      "motivo": "Remessa recusada"
+    },
+    {
+      "id": "cotacao-diferente",
+      "titulo": "A cotação cobrada foi diferente da simulada",
+      "resumo": "Cliente liga para contestar a diferença entre a taxa simulada e a efetivada.",
+      "tela": "Confirmar",
+      "categoria": "cotacao",
+      "motivo": "Contestação de taxa"
+    },
+    {
+      "id": "alterar-beneficiario",
+      "titulo": "Preciso alterar dados do beneficiário depois de enviar",
+      "resumo": "Erro de digitação descoberto depois do envio, sem caminho de correção no app.",
+      "tela": "Acompanhar",
+      "categoria": "beneficiario",
+      "motivo": "Alteração de beneficiário"
+    },
+    {
+      "id": "limite-nao-aparece",
+      "titulo": "O limite de envio não aparece antes",
+      "resumo": "O cliente descobre o limite só depois de preencher tudo.",
+      "tela": "Simular",
+      "categoria": "confirmacao",
+      "motivo": "Limite de operação"
+    },
+    {
+      "id": "iof-duvida",
+      "titulo": "Não entendi quanto paguei de IOF",
+      "resumo": "O comprovante mostra o total, mas não separa IOF, tarifa e cotação.",
+      "tela": "Revisar",
+      "categoria": "cotacao",
+      "motivo": "Dúvida sobre impostos"
+    },
+    {
+      "id": "cartao-viagem",
+      "titulo": "Quero usar o saldo em moeda no cartão de viagem",
+      "resumo": "Clientes não sabem se a moeda comprada vai para o cartão pré-pago.",
+      "tela": null,
+      "categoria": "cotacao",
+      "motivo": "Cartão de viagem"
+    },
+    {
+      "id": "token-confirmar",
+      "titulo": "O token não chega na hora de confirmar",
+      "resumo": "O SMS de confirmação demora, e a cotação expira enquanto o cliente espera.",
+      "tela": "Confirmar",
+      "categoria": "confirmacao",
+      "motivo": "Token e segurança"
+    }
+  ],
+  "registros": [
+    {
+      "id": "VC-cambio-alterar-beneficiario-01",
+      "diasAtras": 89,
+      "tema": "alterar-beneficiario",
+      "peso": 16,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-00",
+      "diasAtras": 89,
+      "tema": "estorno-sem-aviso",
+      "peso": 27,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-geral-0",
+      "diasAtras": 89,
+      "tema": null,
+      "peso": 29,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-iof-duvida-01",
+      "diasAtras": 89,
+      "tema": "iof-duvida",
+      "peso": 7,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-00",
+      "diasAtras": 89,
+      "tema": "motivo-recusa",
+      "peso": 9,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-00",
+      "diasAtras": 87,
+      "tema": "alterar-beneficiario",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-01",
+      "diasAtras": 87,
+      "tema": "estorno-sem-aviso",
+      "peso": 45,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-01",
+      "diasAtras": 86,
+      "tema": "cartao-viagem",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-00",
+      "diasAtras": 86,
+      "tema": "cotacao-diferente",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-00",
+      "diasAtras": 86,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-01",
+      "diasAtras": 84,
+      "tema": "cotacao-diferente",
+      "peso": 27,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-01",
+      "diasAtras": 84,
+      "tema": "limite-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-01",
+      "diasAtras": 84,
+      "tema": "motivo-recusa",
+      "peso": 27,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-token-confirmar-01",
+      "diasAtras": 84,
+      "tema": "token-confirmar",
+      "peso": 4,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-10",
+      "diasAtras": 83,
+      "tema": "cotacao-diferente",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-iof-duvida-11",
+      "diasAtras": 83,
+      "tema": "iof-duvida",
+      "peso": 7,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-11",
+      "diasAtras": 83,
+      "tema": "motivo-recusa",
+      "peso": 25,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-10",
+      "diasAtras": 82,
+      "tema": "alterar-beneficiario",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-11",
+      "diasAtras": 81,
+      "tema": "estorno-sem-aviso",
+      "peso": 52,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-11",
+      "diasAtras": 80,
+      "tema": "alterar-beneficiario",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-11",
+      "diasAtras": 80,
+      "tema": "limite-nao-aparece",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-10",
+      "diasAtras": 79,
+      "tema": "estorno-sem-aviso",
+      "peso": 32,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-11",
+      "diasAtras": 78,
+      "tema": "cotacao-diferente",
+      "peso": 26,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-10",
+      "diasAtras": 78,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-10",
+      "diasAtras": 78,
+      "tema": "motivo-recusa",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-token-confirmar-11",
+      "diasAtras": 78,
+      "tema": "token-confirmar",
+      "peso": 4,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-11",
+      "diasAtras": 77,
+      "tema": "cartao-viagem",
+      "peso": 6,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-1",
+      "diasAtras": 77,
+      "tema": null,
+      "peso": 27,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-21",
+      "diasAtras": 76,
+      "tema": "cotacao-diferente",
+      "peso": 25,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-20",
+      "diasAtras": 76,
+      "tema": "motivo-recusa",
+      "peso": 9,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-token-confirmar-21",
+      "diasAtras": 76,
+      "tema": "token-confirmar",
+      "peso": 4,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-21",
+      "diasAtras": 75,
+      "tema": "estorno-sem-aviso",
+      "peso": 53,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-20",
+      "diasAtras": 73,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-21",
+      "diasAtras": 72,
+      "tema": "alterar-beneficiario",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-21",
+      "diasAtras": 72,
+      "tema": "cartao-viagem",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-2",
+      "diasAtras": 72,
+      "tema": null,
+      "peso": 31,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-20",
+      "diasAtras": 71,
+      "tema": "cotacao-diferente",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-iof-duvida-21",
+      "diasAtras": 71,
+      "tema": "iof-duvida",
+      "peso": 7,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-21",
+      "diasAtras": 71,
+      "tema": "limite-nao-aparece",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-21",
+      "diasAtras": 71,
+      "tema": "motivo-recusa",
+      "peso": 27,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-20",
+      "diasAtras": 70,
+      "tema": "alterar-beneficiario",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-20",
+      "diasAtras": 70,
+      "tema": "estorno-sem-aviso",
+      "peso": 32,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-30",
+      "diasAtras": 69,
+      "tema": "estorno-sem-aviso",
+      "peso": 32,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-30",
+      "diasAtras": 69,
+      "tema": "motivo-recusa",
+      "peso": 9,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-30",
+      "diasAtras": 68,
+      "tema": "alterar-beneficiario",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-30",
+      "diasAtras": 68,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-31",
+      "diasAtras": 67,
+      "tema": "cotacao-diferente",
+      "peso": 23,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-3",
+      "diasAtras": 67,
+      "tema": null,
+      "peso": 32,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-31",
+      "diasAtras": 67,
+      "tema": "motivo-recusa",
+      "peso": 29,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-31",
+      "diasAtras": 66,
+      "tema": "alterar-beneficiario",
+      "peso": 14,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-31",
+      "diasAtras": 65,
+      "tema": "cartao-viagem",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-30",
+      "diasAtras": 65,
+      "tema": "cotacao-diferente",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-31",
+      "diasAtras": 64,
+      "tema": "estorno-sem-aviso",
+      "peso": 53,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-iof-duvida-31",
+      "diasAtras": 64,
+      "tema": "iof-duvida",
+      "peso": 7,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-token-confirmar-31",
+      "diasAtras": 64,
+      "tema": "token-confirmar",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-31",
+      "diasAtras": 63,
+      "tema": "limite-nao-aparece",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-4",
+      "diasAtras": 62,
+      "tema": null,
+      "peso": 30,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-41",
+      "diasAtras": 61,
+      "tema": "limite-nao-aparece",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-41",
+      "diasAtras": 61,
+      "tema": "motivo-recusa",
+      "peso": 32,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-41",
+      "diasAtras": 60,
+      "tema": "alterar-beneficiario",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-40",
+      "diasAtras": 60,
+      "tema": "cotacao-diferente",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-40",
+      "diasAtras": 59,
+      "tema": "motivo-recusa",
+      "peso": 10,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-40",
+      "diasAtras": 58,
+      "tema": "alterar-beneficiario",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-41",
+      "diasAtras": 58,
+      "tema": "cotacao-diferente",
+      "peso": 27,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-40",
+      "diasAtras": 58,
+      "tema": "estorno-sem-aviso",
+      "peso": 30,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-token-confirmar-41",
+      "diasAtras": 58,
+      "tema": "token-confirmar",
+      "peso": 4,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-41",
+      "diasAtras": 56,
+      "tema": "cartao-viagem",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-41",
+      "diasAtras": 56,
+      "tema": "estorno-sem-aviso",
+      "peso": 50,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-iof-duvida-41",
+      "diasAtras": 56,
+      "tema": "iof-duvida",
+      "peso": 8,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-40",
+      "diasAtras": 56,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-token-confirmar-51",
+      "diasAtras": 55,
+      "tema": "token-confirmar",
+      "peso": 4,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-50",
+      "diasAtras": 54,
+      "tema": "alterar-beneficiario",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-iof-duvida-51",
+      "diasAtras": 54,
+      "tema": "iof-duvida",
+      "peso": 7,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-50",
+      "diasAtras": 54,
+      "tema": "motivo-recusa",
+      "peso": 9,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-51",
+      "diasAtras": 52,
+      "tema": "alterar-beneficiario",
+      "peso": 16,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-51",
+      "diasAtras": 52,
+      "tema": "motivo-recusa",
+      "peso": 28,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-51",
+      "diasAtras": 51,
+      "tema": "cotacao-diferente",
+      "peso": 27,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-51",
+      "diasAtras": 51,
+      "tema": "estorno-sem-aviso",
+      "peso": 60,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-51",
+      "diasAtras": 51,
+      "tema": "limite-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-51",
+      "diasAtras": 50,
+      "tema": "cartao-viagem",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-5",
+      "diasAtras": 50,
+      "tema": null,
+      "peso": 28,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-50",
+      "diasAtras": 49,
+      "tema": "cotacao-diferente",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-50",
+      "diasAtras": 49,
+      "tema": "estorno-sem-aviso",
+      "peso": 37,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-50",
+      "diasAtras": 49,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-61",
+      "diasAtras": 48,
+      "tema": "cotacao-diferente",
+      "peso": 28,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-60",
+      "diasAtras": 48,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-61",
+      "diasAtras": 47,
+      "tema": "motivo-recusa",
+      "peso": 29,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-61",
+      "diasAtras": 46,
+      "tema": "alterar-beneficiario",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-61",
+      "diasAtras": 46,
+      "tema": "limite-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-61",
+      "diasAtras": 45,
+      "tema": "cartao-viagem",
+      "peso": 6,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-6",
+      "diasAtras": 45,
+      "tema": null,
+      "peso": 28,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-60",
+      "diasAtras": 45,
+      "tema": "motivo-recusa",
+      "peso": 9,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-60",
+      "diasAtras": 44,
+      "tema": "alterar-beneficiario",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-60",
+      "diasAtras": 44,
+      "tema": "estorno-sem-aviso",
+      "peso": 38,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-60",
+      "diasAtras": 43,
+      "tema": "cotacao-diferente",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-61",
+      "diasAtras": 42,
+      "tema": "estorno-sem-aviso",
+      "peso": 62,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-iof-duvida-61",
+      "diasAtras": 42,
+      "tema": "iof-duvida",
+      "peso": 7,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-token-confirmar-61",
+      "diasAtras": 42,
+      "tema": "token-confirmar",
+      "peso": 4,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-70",
+      "diasAtras": 41,
+      "tema": "cotacao-diferente",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-71",
+      "diasAtras": 41,
+      "tema": "estorno-sem-aviso",
+      "peso": 68,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-7",
+      "diasAtras": 40,
+      "tema": null,
+      "peso": 32,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-70",
+      "diasAtras": 39,
+      "tema": "estorno-sem-aviso",
+      "peso": 42,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-70",
+      "diasAtras": 39,
+      "tema": "motivo-recusa",
+      "peso": 9,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-70",
+      "diasAtras": 38,
+      "tema": "alterar-beneficiario",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-71",
+      "diasAtras": 38,
+      "tema": "cartao-viagem",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-71",
+      "diasAtras": 37,
+      "tema": "limite-nao-aparece",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-71",
+      "diasAtras": 37,
+      "tema": "motivo-recusa",
+      "peso": 28,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-token-confirmar-71",
+      "diasAtras": 37,
+      "tema": "token-confirmar",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-71",
+      "diasAtras": 36,
+      "tema": "alterar-beneficiario",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-71",
+      "diasAtras": 36,
+      "tema": "cotacao-diferente",
+      "peso": 24,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-iof-duvida-71",
+      "diasAtras": 35,
+      "tema": "iof-duvida",
+      "peso": 7,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-70",
+      "diasAtras": 35,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-80",
+      "diasAtras": 34,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-token-confirmar-81",
+      "diasAtras": 34,
+      "tema": "token-confirmar",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-81",
+      "diasAtras": 33,
+      "tema": "cotacao-diferente",
+      "peso": 26,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-81",
+      "diasAtras": 33,
+      "tema": "motivo-recusa",
+      "peso": 33,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-81",
+      "diasAtras": 32,
+      "tema": "cartao-viagem",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-81",
+      "diasAtras": 32,
+      "tema": "limite-nao-aparece",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-81",
+      "diasAtras": 31,
+      "tema": "alterar-beneficiario",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-8",
+      "diasAtras": 31,
+      "tema": null,
+      "peso": 31,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-80",
+      "diasAtras": 31,
+      "tema": "motivo-recusa",
+      "peso": 11,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-80",
+      "diasAtras": 30,
+      "tema": "estorno-sem-aviso",
+      "peso": 37,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-80",
+      "diasAtras": 29,
+      "tema": "alterar-beneficiario",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-80",
+      "diasAtras": 28,
+      "tema": "cotacao-diferente",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-81",
+      "diasAtras": 28,
+      "tema": "estorno-sem-aviso",
+      "peso": 61,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-iof-duvida-81",
+      "diasAtras": 28,
+      "tema": "iof-duvida",
+      "peso": 8,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-90",
+      "diasAtras": 27,
+      "tema": "alterar-beneficiario",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-91",
+      "diasAtras": 27,
+      "tema": "estorno-sem-aviso",
+      "peso": 66,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-90",
+      "diasAtras": 27,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-91",
+      "diasAtras": 27,
+      "tema": "motivo-recusa",
+      "peso": 33,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-9",
+      "diasAtras": 26,
+      "tema": null,
+      "peso": 31,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-iof-duvida-91",
+      "diasAtras": 26,
+      "tema": "iof-duvida",
+      "peso": 8,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-91",
+      "diasAtras": 25,
+      "tema": "alterar-beneficiario",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-90",
+      "diasAtras": 25,
+      "tema": "estorno-sem-aviso",
+      "peso": 41,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-91",
+      "diasAtras": 24,
+      "tema": "cartao-viagem",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-token-confirmar-91",
+      "diasAtras": 24,
+      "tema": "token-confirmar",
+      "peso": 5,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-91",
+      "diasAtras": 23,
+      "tema": "cotacao-diferente",
+      "peso": 27,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-91",
+      "diasAtras": 22,
+      "tema": "limite-nao-aparece",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-90",
+      "diasAtras": 22,
+      "tema": "motivo-recusa",
+      "peso": 10,
+      "rechamada": true
+    },
+    {
+      "id": "VC-53200",
+      "diasAtras": 21,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "13:12",
+      "duracao": "3 min 22 s",
+      "trechos": [
+        {
+          "t": "00:31",
+          "quem": "Cliente",
+          "texto": "Preenchi tudo e no final disse que passei do limite. Por que não avisou antes?"
+        }
+      ]
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-90",
+      "diasAtras": 21,
+      "tema": "cotacao-diferente",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-100",
+      "diasAtras": 20,
+      "tema": "alterar-beneficiario",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-101",
+      "diasAtras": 20,
+      "tema": "cartao-viagem",
+      "peso": 6,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-100",
+      "diasAtras": 20,
+      "tema": "estorno-sem-aviso",
+      "peso": 43,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-101",
+      "diasAtras": 20,
+      "tema": "motivo-recusa",
+      "peso": 32,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-100",
+      "diasAtras": 19,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-101",
+      "diasAtras": 18,
+      "tema": "alterar-beneficiario",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-10",
+      "diasAtras": 18,
+      "tema": null,
+      "peso": 27,
+      "rechamada": false
+    },
+    {
+      "id": "VC-53712",
+      "diasAtras": 17,
+      "tema": "alterar-beneficiario",
+      "peso": 1,
+      "rechamada": true,
+      "hora": "15:31",
+      "duracao": "8 min 10 s",
+      "trechos": [
+        {
+          "t": "00:48",
+          "quem": "Cliente",
+          "texto": "Digitei uma letra errada no nome e não tem onde corrigir."
+        }
+      ]
+    },
+    {
+      "id": "VC-cambio-token-confirmar-101",
+      "diasAtras": 17,
+      "tema": "token-confirmar",
+      "peso": 4,
+      "rechamada": false
+    },
+    {
+      "id": "VC-53870",
+      "diasAtras": 16,
+      "tema": "token-confirmar",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "08:55",
+      "duracao": "3 min 49 s",
+      "trechos": [
+        {
+          "t": "00:27",
+          "quem": "Cliente",
+          "texto": "O código não chegou e quando chegou a cotação já tinha mudado."
+        }
+      ]
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-101",
+      "diasAtras": 16,
+      "tema": "cotacao-diferente",
+      "peso": 29,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-101",
+      "diasAtras": 15,
+      "tema": "estorno-sem-aviso",
+      "peso": 69,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-100",
+      "diasAtras": 15,
+      "tema": "motivo-recusa",
+      "peso": 10,
+      "rechamada": true
+    },
+    {
+      "id": "VC-53990",
+      "diasAtras": 14,
+      "tema": "estorno-sem-aviso",
+      "peso": 1,
+      "rechamada": true,
+      "hora": "09:17",
+      "duracao": "7 min 55 s",
+      "trechos": [
+        {
+          "t": "02:31",
+          "quem": "Cliente",
+          "texto": "É a segunda vez que eu ligo. Quero saber o que eu preciso corrigir para mandar de novo."
+        }
+      ]
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-100",
+      "diasAtras": 14,
+      "tema": "cotacao-diferente",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-iof-duvida-101",
+      "diasAtras": 14,
+      "tema": "iof-duvida",
+      "peso": 8,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-101",
+      "diasAtras": 14,
+      "tema": "limite-nao-aparece",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-110",
+      "diasAtras": 13,
+      "tema": "estorno-sem-aviso",
+      "peso": 48,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-110",
+      "diasAtras": 13,
+      "tema": "motivo-recusa",
+      "peso": 9,
+      "rechamada": true
+    },
+    {
+      "id": "VC-54019",
+      "diasAtras": 12,
+      "tema": "cotacao-diferente",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "10:05",
+      "duracao": "6 min 48 s",
+      "trechos": [
+        {
+          "t": "01:02",
+          "quem": "Cliente",
+          "texto": "Simulei, fui buscar o IBAN e quando voltei a cotação era outra."
+        }
+      ]
+    },
+    {
+      "id": "VC-54210",
+      "diasAtras": 11,
+      "tema": "cartao-viagem",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "18:40",
+      "duracao": "5 min 27 s",
+      "trechos": [
+        {
+          "t": "00:33",
+          "quem": "Cliente",
+          "texto": "Comprei dólar no app. Ele vai direto para o meu cartão de viagem?"
+        }
+      ]
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-111",
+      "diasAtras": 11,
+      "tema": "estorno-sem-aviso",
+      "peso": 79,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-token-confirmar-111",
+      "diasAtras": 11,
+      "tema": "token-confirmar",
+      "peso": 4,
+      "rechamada": false
+    },
+    {
+      "id": "VC-54402",
+      "diasAtras": 10,
+      "tema": "motivo-recusa",
+      "peso": 1,
+      "rechamada": true,
+      "hora": "14:48",
+      "duracao": "3 min 37 s",
+      "trechos": [
+        {
+          "t": "00:35",
+          "quem": "Cliente",
+          "texto": "Eu corrigi o que achei que era e foi recusada de novo."
+        }
+      ]
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-111",
+      "diasAtras": 10,
+      "tema": "alterar-beneficiario",
+      "peso": 16,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-110",
+      "diasAtras": 10,
+      "tema": "cotacao-diferente",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-110",
+      "diasAtras": 10,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-54630",
+      "diasAtras": 9,
+      "tema": "iof-duvida",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "12:02",
+      "duracao": "4 min 05 s",
+      "trechos": [
+        {
+          "t": "00:19",
+          "quem": "Cliente",
+          "texto": "Quanto disso aqui foi IOF? No comprovante só aparece o total."
+        }
+      ]
+    },
+    {
+      "id": "VC-cambio-geral-11",
+      "diasAtras": 9,
+      "tema": null,
+      "peso": 30,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-iof-duvida-111",
+      "diasAtras": 9,
+      "tema": "iof-duvida",
+      "peso": 7,
+      "rechamada": false
+    },
+    {
+      "id": "VC-54877",
+      "diasAtras": 8,
+      "tema": "estorno-sem-aviso",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "16:03",
+      "duracao": "4 min 40 s",
+      "trechos": [
+        {
+          "t": "00:22",
+          "quem": "Cliente",
+          "texto": "O app mostra “em processamento” há três dias e o dinheiro já está de volta na minha conta."
+        },
+        {
+          "t": "00:58",
+          "quem": "Atendente",
+          "texto": "O status do app atualiza depois do estorno. Vou abrir uma solicitação."
+        }
+      ]
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-110",
+      "diasAtras": 8,
+      "tema": "alterar-beneficiario",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-111",
+      "diasAtras": 8,
+      "tema": "cotacao-diferente",
+      "peso": 28,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-111",
+      "diasAtras": 8,
+      "tema": "limite-nao-aparece",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-111",
+      "diasAtras": 8,
+      "tema": "motivo-recusa",
+      "peso": 30,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-111",
+      "diasAtras": 7,
+      "tema": "cartao-viagem",
+      "peso": 6,
+      "rechamada": false
+    },
+    {
+      "id": "VC-55120",
+      "diasAtras": 6,
+      "tema": "estorno-sem-aviso",
+      "peso": 1,
+      "rechamada": true,
+      "hora": "10:42",
+      "duracao": "6 min 12 s",
+      "trechos": [
+        {
+          "t": "00:14",
+          "quem": "Cliente",
+          "texto": "Fiz uma remessa para os Estados Unidos na segunda e hoje vi que o dinheiro voltou para a conta."
+        },
+        {
+          "t": "00:41",
+          "quem": "Cliente",
+          "texto": "Ninguém me avisou nada. Nem e-mail, nem notificação no app."
+        },
+        {
+          "t": "01:05",
+          "quem": "Atendente",
+          "texto": "A remessa foi estornada porque o banco do beneficiário recusou o IBAN informado."
+        },
+        {
+          "t": "01:12",
+          "quem": "Cliente",
+          "texto": "E como eu ia saber disso? O aluguel da minha filha vence amanhã."
+        }
+      ]
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-120",
+      "diasAtras": 6,
+      "tema": "cartao-viagem",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-120",
+      "diasAtras": 6,
+      "tema": "estorno-sem-aviso",
+      "peso": 47,
+      "rechamada": true
+    },
+    {
+      "id": "VC-55311",
+      "diasAtras": 5,
+      "tema": "motivo-recusa",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "11:20",
+      "duracao": "5 min 03 s",
+      "trechos": [
+        {
+          "t": "02:10",
+          "quem": "Cliente",
+          "texto": "O app só diz recusada, mas recusada por quê?"
+        },
+        {
+          "t": "02:26",
+          "quem": "Atendente",
+          "texto": "O código de retorno indica divergência no nome do beneficiário."
+        }
+      ]
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-120",
+      "diasAtras": 5,
+      "tema": "alterar-beneficiario",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-120",
+      "diasAtras": 5,
+      "tema": "cotacao-diferente",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-iof-duvida-121",
+      "diasAtras": 5,
+      "tema": "iof-duvida",
+      "peso": 7,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-120",
+      "diasAtras": 5,
+      "tema": "limite-nao-aparece",
+      "peso": 1,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-cartao-viagem-121",
+      "diasAtras": 4,
+      "tema": "cartao-viagem",
+      "peso": 6,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-alterar-beneficiario-121",
+      "diasAtras": 3,
+      "tema": "alterar-beneficiario",
+      "peso": 14,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-120",
+      "diasAtras": 3,
+      "tema": "motivo-recusa",
+      "peso": 11,
+      "rechamada": true
+    },
+    {
+      "id": "VC-cambio-estorno-sem-aviso-121",
+      "diasAtras": 1,
+      "tema": "estorno-sem-aviso",
+      "peso": 77,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-geral-12",
+      "diasAtras": 1,
+      "tema": null,
+      "peso": 31,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-motivo-recusa-121",
+      "diasAtras": 1,
+      "tema": "motivo-recusa",
+      "peso": 34,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-cotacao-diferente-121",
+      "diasAtras": 0,
+      "tema": "cotacao-diferente",
+      "peso": 28,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-limite-nao-aparece-121",
+      "diasAtras": 0,
+      "tema": "limite-nao-aparece",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-cambio-token-confirmar-121",
+      "diasAtras": 0,
+      "tema": "token-confirmar",
+      "peso": 5,
+      "rechamada": false
+    }
+  ]
+}

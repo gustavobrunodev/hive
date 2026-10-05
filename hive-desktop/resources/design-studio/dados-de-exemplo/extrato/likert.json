@@ -1,0 +1,2659 @@
+{
+  "formato": "dados-de-exemplo/1",
+  "produto": "Extrato",
+  "fonte": "likert",
+  "volume": 18240,
+  "categorias": [
+    {
+      "id": "historico",
+      "nome": "Período e histórico",
+      "padrao": "O limite de 90 dias leva o cliente a ligar para pedir extratos e comprovantes antigos.",
+      "sugestao": "Liberar a escolha de período até 5 anos, com atalhos para mês e ano."
+    },
+    {
+      "id": "busca",
+      "nome": "Busca e identificação",
+      "padrao": "O cliente não reconhece o lançamento, tenta buscar, não acha e liga.",
+      "sugestao": "Buscar por valor e por nome da loja, e mostrar o nome comercial no lançamento."
+    },
+    {
+      "id": "lista",
+      "nome": "Lista e saldos",
+      "padrao": "Saldos parecidos e lançamentos repetidos confundem quem confere a conta.",
+      "sugestao": "Separar saldo do dia e saldo disponível, e explicar lançamentos repetidos."
+    },
+    {
+      "id": "exportar",
+      "nome": "Exportação e documentos",
+      "padrao": "Exportar é difícil de achar e falha justamente em períodos longos, como o do imposto de renda.",
+      "sugestao": "Pôr o exportar no topo do extrato e gerar o informe anual pronto."
+    }
+  ],
+  "temas": [
+    {
+      "id": "historico-90-dias",
+      "titulo": "Não consigo ver o histórico maior que 90 dias",
+      "resumo": "O app mostra só os últimos 90 dias e não oferece outro período; o site mostra mais, e o cliente não entende por quê.",
+      "tela": "Período",
+      "categoria": "historico"
+    },
+    {
+      "id": "busca-nao-encontra",
+      "titulo": "A busca não encontra o lançamento",
+      "resumo": "Buscar pelo nome da loja não traz resultado quando o lançamento aparece com outro nome.",
+      "tela": "Busca",
+      "categoria": "busca"
+    },
+    {
+      "id": "nomes-desconhecidos",
+      "titulo": "Lançamentos com nomes que não reconheço",
+      "resumo": "Descrições como “PG *XPTO 3321” geram desconfiança e ligações de contestação.",
+      "tela": "Detalhe",
+      "categoria": "busca"
+    },
+    {
+      "id": "saldo-confuso",
+      "titulo": "Saldo do dia confunde com saldo disponível",
+      "resumo": "Dois saldos lado a lado, sem explicação da diferença.",
+      "tela": "Extrato",
+      "categoria": "lista"
+    },
+    {
+      "id": "exportar-escondido",
+      "titulo": "Exportar em PDF fica escondido",
+      "resumo": "A opção de exportar está num menu de três pontos que pouca gente abre.",
+      "tela": "Exportar",
+      "categoria": "exportar"
+    },
+    {
+      "id": "extrato-demora",
+      "titulo": "O extrato demora para carregar",
+      "resumo": "Abrir o extrato leva segundos com a tela em branco, principalmente no começo do mês.",
+      "tela": "Extrato",
+      "categoria": "lista"
+    },
+    {
+      "id": "filtro-entradas",
+      "titulo": "Queria filtrar só entradas ou só saídas",
+      "resumo": "Não há como separar o que entrou do que saiu sem rolar a lista inteira.",
+      "tela": "Busca",
+      "categoria": "busca"
+    },
+    {
+      "id": "modo-escuro-ilegivel",
+      "titulo": "O extrato fica ilegível no modo escuro",
+      "resumo": "Valores negativos em vermelho somem sobre o fundo escuro.",
+      "tela": null,
+      "categoria": "lista"
+    }
+  ],
+  "registros": [
+    {
+      "id": "LK-extrato-extrato-demora-00",
+      "diasAtras": 89,
+      "tema": "extrato-demora",
+      "peso": 10,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-01",
+      "diasAtras": 89,
+      "tema": null,
+      "peso": 117,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-02",
+      "diasAtras": 89,
+      "tema": null,
+      "peso": 78,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-05",
+      "diasAtras": 89,
+      "tema": null,
+      "peso": 390,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-01",
+      "diasAtras": 89,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-00",
+      "diasAtras": 89,
+      "tema": "nomes-desconhecidos",
+      "peso": 29,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-00",
+      "diasAtras": 89,
+      "tema": "saldo-confuso",
+      "peso": 19,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-01",
+      "diasAtras": 88,
+      "tema": "busca-nao-encontra",
+      "peso": 17,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-01",
+      "diasAtras": 88,
+      "tema": "exportar-escondido",
+      "peso": 15,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-00",
+      "diasAtras": 87,
+      "tema": "filtro-entradas",
+      "peso": 4,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-03",
+      "diasAtras": 87,
+      "tema": null,
+      "peso": 173,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-01",
+      "diasAtras": 87,
+      "tema": "historico-90-dias",
+      "peso": 20,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-01",
+      "diasAtras": 87,
+      "tema": "saldo-confuso",
+      "peso": 17,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-00",
+      "diasAtras": 86,
+      "tema": "busca-nao-encontra",
+      "peso": 41,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-00",
+      "diasAtras": 86,
+      "tema": "exportar-escondido",
+      "peso": 9,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-01",
+      "diasAtras": 85,
+      "tema": "filtro-entradas",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-00",
+      "diasAtras": 85,
+      "tema": "historico-90-dias",
+      "peso": 122,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-00",
+      "diasAtras": 85,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 3,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-01",
+      "diasAtras": 84,
+      "tema": "extrato-demora",
+      "peso": 9,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-04",
+      "diasAtras": 84,
+      "tema": null,
+      "peso": 303,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-01",
+      "diasAtras": 84,
+      "tema": "nomes-desconhecidos",
+      "peso": 19,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-10",
+      "diasAtras": 83,
+      "tema": "busca-nao-encontra",
+      "peso": 34,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-12",
+      "diasAtras": 83,
+      "tema": null,
+      "peso": 78,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-11",
+      "diasAtras": 83,
+      "tema": "nomes-desconhecidos",
+      "peso": 19,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-10",
+      "diasAtras": 82,
+      "tema": "exportar-escondido",
+      "peso": 8,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-11",
+      "diasAtras": 82,
+      "tema": "extrato-demora",
+      "peso": 8,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-15",
+      "diasAtras": 82,
+      "tema": null,
+      "peso": 390,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-10",
+      "diasAtras": 82,
+      "tema": "historico-90-dias",
+      "peso": 113,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-10",
+      "diasAtras": 82,
+      "tema": "saldo-confuso",
+      "peso": 20,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-11",
+      "diasAtras": 81,
+      "tema": "busca-nao-encontra",
+      "peso": 15,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-11",
+      "diasAtras": 81,
+      "tema": null,
+      "peso": 118,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-11",
+      "diasAtras": 80,
+      "tema": "exportar-escondido",
+      "peso": 15,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-11",
+      "diasAtras": 80,
+      "tema": "filtro-entradas",
+      "peso": 11,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-14",
+      "diasAtras": 80,
+      "tema": null,
+      "peso": 304,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-11",
+      "diasAtras": 80,
+      "tema": "historico-90-dias",
+      "peso": 18,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-11",
+      "diasAtras": 79,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-10",
+      "diasAtras": 78,
+      "tema": "filtro-entradas",
+      "peso": 5,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-13",
+      "diasAtras": 78,
+      "tema": null,
+      "peso": 174,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-10",
+      "diasAtras": 78,
+      "tema": "nomes-desconhecidos",
+      "peso": 29,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-10",
+      "diasAtras": 77,
+      "tema": "extrato-demora",
+      "peso": 10,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-10",
+      "diasAtras": 77,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 3,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-11",
+      "diasAtras": 77,
+      "tema": "saldo-confuso",
+      "peso": 18,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-20",
+      "diasAtras": 76,
+      "tema": "extrato-demora",
+      "peso": 12,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-21",
+      "diasAtras": 76,
+      "tema": "filtro-entradas",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-23",
+      "diasAtras": 76,
+      "tema": null,
+      "peso": 186,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-21",
+      "diasAtras": 76,
+      "tema": "nomes-desconhecidos",
+      "peso": 19,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-20",
+      "diasAtras": 75,
+      "tema": "busca-nao-encontra",
+      "peso": 38,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-20",
+      "diasAtras": 75,
+      "tema": "exportar-escondido",
+      "peso": 8,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-24",
+      "diasAtras": 74,
+      "tema": null,
+      "peso": 325,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-20",
+      "diasAtras": 74,
+      "tema": "nomes-desconhecidos",
+      "peso": 28,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-21",
+      "diasAtras": 73,
+      "tema": null,
+      "peso": 126,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-21",
+      "diasAtras": 73,
+      "tema": "historico-90-dias",
+      "peso": 18,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-20",
+      "diasAtras": 73,
+      "tema": "saldo-confuso",
+      "peso": 18,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-25",
+      "diasAtras": 72,
+      "tema": null,
+      "peso": 417,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-20",
+      "diasAtras": 72,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 2,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-21",
+      "diasAtras": 71,
+      "tema": "extrato-demora",
+      "peso": 9,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-20",
+      "diasAtras": 71,
+      "tema": "filtro-entradas",
+      "peso": 4,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-22",
+      "diasAtras": 71,
+      "tema": null,
+      "peso": 84,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-20",
+      "diasAtras": 71,
+      "tema": "historico-90-dias",
+      "peso": 113,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-21",
+      "diasAtras": 71,
+      "tema": "saldo-confuso",
+      "peso": 16,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-21",
+      "diasAtras": 70,
+      "tema": "busca-nao-encontra",
+      "peso": 16,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-21",
+      "diasAtras": 70,
+      "tema": "exportar-escondido",
+      "peso": 14,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-21",
+      "diasAtras": 70,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-31",
+      "diasAtras": 69,
+      "tema": "busca-nao-encontra",
+      "peso": 16,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-34",
+      "diasAtras": 69,
+      "tema": null,
+      "peso": 277,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-30",
+      "diasAtras": 69,
+      "tema": "historico-90-dias",
+      "peso": 114,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-31",
+      "diasAtras": 69,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-30",
+      "diasAtras": 69,
+      "tema": "nomes-desconhecidos",
+      "peso": 25,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-31",
+      "diasAtras": 68,
+      "tema": "exportar-escondido",
+      "peso": 13,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-31",
+      "diasAtras": 67,
+      "tema": "historico-90-dias",
+      "peso": 18,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-30",
+      "diasAtras": 67,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 2,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-31",
+      "diasAtras": 67,
+      "tema": "nomes-desconhecidos",
+      "peso": 16,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-31",
+      "diasAtras": 66,
+      "tema": "filtro-entradas",
+      "peso": 9,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-33",
+      "diasAtras": 66,
+      "tema": null,
+      "peso": 158,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-31",
+      "diasAtras": 66,
+      "tema": "saldo-confuso",
+      "peso": 16,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-30",
+      "diasAtras": 65,
+      "tema": "extrato-demora",
+      "peso": 12,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-30",
+      "diasAtras": 64,
+      "tema": "busca-nao-encontra",
+      "peso": 39,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-30",
+      "diasAtras": 64,
+      "tema": "filtro-entradas",
+      "peso": 4,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-32",
+      "diasAtras": 64,
+      "tema": null,
+      "peso": 72,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-35",
+      "diasAtras": 64,
+      "tema": null,
+      "peso": 356,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-30",
+      "diasAtras": 64,
+      "tema": "saldo-confuso",
+      "peso": 17,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-30",
+      "diasAtras": 63,
+      "tema": "exportar-escondido",
+      "peso": 8,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-31",
+      "diasAtras": 63,
+      "tema": "extrato-demora",
+      "peso": 9,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-31",
+      "diasAtras": 63,
+      "tema": null,
+      "peso": 107,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-41",
+      "diasAtras": 62,
+      "tema": null,
+      "peso": 111,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-41",
+      "diasAtras": 62,
+      "tema": "historico-90-dias",
+      "peso": 22,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-41",
+      "diasAtras": 62,
+      "tema": "nomes-desconhecidos",
+      "peso": 19,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-41",
+      "diasAtras": 61,
+      "tema": "busca-nao-encontra",
+      "peso": 19,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-41",
+      "diasAtras": 61,
+      "tema": "filtro-entradas",
+      "peso": 10,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-42",
+      "diasAtras": 61,
+      "tema": null,
+      "peso": 74,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-40",
+      "diasAtras": 60,
+      "tema": "historico-90-dias",
+      "peso": 135,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-40",
+      "diasAtras": 60,
+      "tema": "nomes-desconhecidos",
+      "peso": 28,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-40",
+      "diasAtras": 59,
+      "tema": "busca-nao-encontra",
+      "peso": 43,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-40",
+      "diasAtras": 59,
+      "tema": "exportar-escondido",
+      "peso": 8,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-41",
+      "diasAtras": 59,
+      "tema": "extrato-demora",
+      "peso": 9,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-43",
+      "diasAtras": 59,
+      "tema": null,
+      "peso": 164,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-41",
+      "diasAtras": 58,
+      "tema": "exportar-escondido",
+      "peso": 15,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-44",
+      "diasAtras": 58,
+      "tema": null,
+      "peso": 288,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-40",
+      "diasAtras": 58,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 2,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-40",
+      "diasAtras": 58,
+      "tema": "saldo-confuso",
+      "peso": 18,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-40",
+      "diasAtras": 57,
+      "tema": "extrato-demora",
+      "peso": 12,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-40",
+      "diasAtras": 56,
+      "tema": "filtro-entradas",
+      "peso": 4,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-45",
+      "diasAtras": 56,
+      "tema": null,
+      "peso": 370,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-41",
+      "diasAtras": 56,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-41",
+      "diasAtras": 56,
+      "tema": "saldo-confuso",
+      "peso": 16,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-51",
+      "diasAtras": 55,
+      "tema": "busca-nao-encontra",
+      "peso": 17,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-50",
+      "diasAtras": 54,
+      "tema": "filtro-entradas",
+      "peso": 5,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-51",
+      "diasAtras": 54,
+      "tema": null,
+      "peso": 112,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-50",
+      "diasAtras": 54,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 3,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-51",
+      "diasAtras": 54,
+      "tema": "saldo-confuso",
+      "peso": 17,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-55",
+      "diasAtras": 53,
+      "tema": null,
+      "peso": 370,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-50",
+      "diasAtras": 53,
+      "tema": "historico-90-dias",
+      "peso": 128,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-50",
+      "diasAtras": 53,
+      "tema": "nomes-desconhecidos",
+      "peso": 28,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-50",
+      "diasAtras": 52,
+      "tema": "exportar-escondido",
+      "peso": 9,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-50",
+      "diasAtras": 52,
+      "tema": "extrato-demora",
+      "peso": 10,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-50",
+      "diasAtras": 52,
+      "tema": "saldo-confuso",
+      "peso": 19,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-53",
+      "diasAtras": 51,
+      "tema": null,
+      "peso": 165,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-54",
+      "diasAtras": 51,
+      "tema": null,
+      "peso": 288,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-51",
+      "diasAtras": 51,
+      "tema": "historico-90-dias",
+      "peso": 21,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-51",
+      "diasAtras": 51,
+      "tema": "nomes-desconhecidos",
+      "peso": 19,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-50",
+      "diasAtras": 50,
+      "tema": "busca-nao-encontra",
+      "peso": 39,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-51",
+      "diasAtras": 50,
+      "tema": "exportar-escondido",
+      "peso": 16,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-51",
+      "diasAtras": 50,
+      "tema": "extrato-demora",
+      "peso": 8,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-51",
+      "diasAtras": 49,
+      "tema": "filtro-entradas",
+      "peso": 10,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-52",
+      "diasAtras": 49,
+      "tema": null,
+      "peso": 74,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-51",
+      "diasAtras": 49,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-61",
+      "diasAtras": 47,
+      "tema": "busca-nao-encontra",
+      "peso": 16,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-61",
+      "diasAtras": 47,
+      "tema": "exportar-escondido",
+      "peso": 15,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-60",
+      "diasAtras": 47,
+      "tema": "filtro-entradas",
+      "peso": 5,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-63",
+      "diasAtras": 47,
+      "tema": null,
+      "peso": 185,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-64",
+      "diasAtras": 47,
+      "tema": null,
+      "peso": 324,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-60",
+      "diasAtras": 46,
+      "tema": "saldo-confuso",
+      "peso": 19,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-60",
+      "diasAtras": 45,
+      "tema": "busca-nao-encontra",
+      "peso": 39,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-60",
+      "diasAtras": 45,
+      "tema": "exportar-escondido",
+      "peso": 9,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-61",
+      "diasAtras": 45,
+      "tema": "extrato-demora",
+      "peso": 9,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-61",
+      "diasAtras": 45,
+      "tema": "filtro-entradas",
+      "peso": 11,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-65",
+      "diasAtras": 45,
+      "tema": null,
+      "peso": 416,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-60",
+      "diasAtras": 45,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 2,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-61",
+      "diasAtras": 44,
+      "tema": null,
+      "peso": 125,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-61",
+      "diasAtras": 44,
+      "tema": "historico-90-dias",
+      "peso": 21,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-61",
+      "diasAtras": 44,
+      "tema": "nomes-desconhecidos",
+      "peso": 20,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-61",
+      "diasAtras": 44,
+      "tema": "saldo-confuso",
+      "peso": 18,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-60",
+      "diasAtras": 43,
+      "tema": "extrato-demora",
+      "peso": 11,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-61",
+      "diasAtras": 43,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-62",
+      "diasAtras": 42,
+      "tema": null,
+      "peso": 84,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-60",
+      "diasAtras": 42,
+      "tema": "historico-90-dias",
+      "peso": 130,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-60",
+      "diasAtras": 42,
+      "tema": "nomes-desconhecidos",
+      "peso": 31,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-28870",
+      "diasAtras": 41,
+      "tema": "exportar-escondido",
+      "peso": 1,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Demorei para descobrir que dava para exportar."
+    },
+    {
+      "id": "LK-extrato-extrato-demora-71",
+      "diasAtras": 41,
+      "tema": "extrato-demora",
+      "peso": 9,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-70",
+      "diasAtras": 41,
+      "tema": "filtro-entradas",
+      "peso": 4,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-72",
+      "diasAtras": 41,
+      "tema": null,
+      "peso": 79,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-70",
+      "diasAtras": 40,
+      "tema": "busca-nao-encontra",
+      "peso": 39,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-70",
+      "diasAtras": 40,
+      "tema": "exportar-escondido",
+      "peso": 8,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-71",
+      "diasAtras": 40,
+      "tema": null,
+      "peso": 118,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-70",
+      "diasAtras": 40,
+      "tema": "historico-90-dias",
+      "peso": 116,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-70",
+      "diasAtras": 40,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 2,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-75",
+      "diasAtras": 39,
+      "tema": null,
+      "peso": 394,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-71",
+      "diasAtras": 39,
+      "tema": "saldo-confuso",
+      "peso": 16,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-71",
+      "diasAtras": 38,
+      "tema": "busca-nao-encontra",
+      "peso": 16,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-71",
+      "diasAtras": 38,
+      "tema": "exportar-escondido",
+      "peso": 15,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-71",
+      "diasAtras": 38,
+      "tema": "historico-90-dias",
+      "peso": 19,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-74",
+      "diasAtras": 37,
+      "tema": null,
+      "peso": 306,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-70",
+      "diasAtras": 37,
+      "tema": "nomes-desconhecidos",
+      "peso": 26,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-70",
+      "diasAtras": 37,
+      "tema": "saldo-confuso",
+      "peso": 17,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-70",
+      "diasAtras": 36,
+      "tema": "extrato-demora",
+      "peso": 12,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-71",
+      "diasAtras": 36,
+      "tema": "filtro-entradas",
+      "peso": 10,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-73",
+      "diasAtras": 36,
+      "tema": null,
+      "peso": 175,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-29102",
+      "diasAtras": 35,
+      "tema": "saldo-confuso",
+      "peso": 1,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Nunca sei qual dos dois saldos é o que eu posso usar."
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-71",
+      "diasAtras": 35,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-71",
+      "diasAtras": 35,
+      "tema": "nomes-desconhecidos",
+      "peso": 18,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-81",
+      "diasAtras": 34,
+      "tema": "exportar-escondido",
+      "peso": 13,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-81",
+      "diasAtras": 34,
+      "tema": "extrato-demora",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-81",
+      "diasAtras": 33,
+      "tema": "busca-nao-encontra",
+      "peso": 18,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-81",
+      "diasAtras": 33,
+      "tema": "saldo-confuso",
+      "peso": 16,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-80",
+      "diasAtras": 32,
+      "tema": "exportar-escondido",
+      "peso": 8,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-80",
+      "diasAtras": 32,
+      "tema": "extrato-demora",
+      "peso": 13,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-84",
+      "diasAtras": 32,
+      "tema": null,
+      "peso": 285,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-29380",
+      "diasAtras": 31,
+      "tema": "filtro-entradas",
+      "peso": 1,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Só queria ver o que entrou na conta este mês."
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-80",
+      "diasAtras": 31,
+      "tema": "busca-nao-encontra",
+      "peso": 43,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-81",
+      "diasAtras": 31,
+      "tema": null,
+      "peso": 110,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-80",
+      "diasAtras": 30,
+      "tema": "filtro-entradas",
+      "peso": 4,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-82",
+      "diasAtras": 30,
+      "tema": null,
+      "peso": 74,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-85",
+      "diasAtras": 30,
+      "tema": null,
+      "peso": 367,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-81",
+      "diasAtras": 30,
+      "tema": "historico-90-dias",
+      "peso": 22,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-81",
+      "diasAtras": 30,
+      "tema": "nomes-desconhecidos",
+      "peso": 18,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-81",
+      "diasAtras": 29,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-29540",
+      "diasAtras": 28,
+      "tema": "nomes-desconhecidos",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Aparece “PG *XPTO 3321” e eu não sei o que é."
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-81",
+      "diasAtras": 28,
+      "tema": "filtro-entradas",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-83",
+      "diasAtras": 28,
+      "tema": null,
+      "peso": 163,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-80",
+      "diasAtras": 28,
+      "tema": "historico-90-dias",
+      "peso": 136,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-80",
+      "diasAtras": 28,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 2,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-80",
+      "diasAtras": 28,
+      "tema": "nomes-desconhecidos",
+      "peso": 27,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-80",
+      "diasAtras": 28,
+      "tema": "saldo-confuso",
+      "peso": 17,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-90",
+      "diasAtras": 27,
+      "tema": "extrato-demora",
+      "peso": 12,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-95",
+      "diasAtras": 27,
+      "tema": null,
+      "peso": 361,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-91",
+      "diasAtras": 27,
+      "tema": "historico-90-dias",
+      "peso": 23,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-90",
+      "diasAtras": 27,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 3,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-91",
+      "diasAtras": 27,
+      "tema": "nomes-desconhecidos",
+      "peso": 18,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-91",
+      "diasAtras": 27,
+      "tema": "saldo-confuso",
+      "peso": 16,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-91",
+      "diasAtras": 26,
+      "tema": "busca-nao-encontra",
+      "peso": 19,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-91",
+      "diasAtras": 26,
+      "tema": "filtro-entradas",
+      "peso": 10,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-91",
+      "diasAtras": 26,
+      "tema": null,
+      "peso": 109,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-29711",
+      "diasAtras": 25,
+      "tema": "busca-nao-encontra",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "A busca só funciona se eu digitar exatamente igual ao extrato."
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-90",
+      "diasAtras": 25,
+      "tema": "exportar-escondido",
+      "peso": 9,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-91",
+      "diasAtras": 25,
+      "tema": "extrato-demora",
+      "peso": 9,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-94",
+      "diasAtras": 25,
+      "tema": null,
+      "peso": 281,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-90",
+      "diasAtras": 25,
+      "tema": "saldo-confuso",
+      "peso": 17,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-90",
+      "diasAtras": 24,
+      "tema": "filtro-entradas",
+      "peso": 4,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-91",
+      "diasAtras": 23,
+      "tema": "exportar-escondido",
+      "peso": 15,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-93",
+      "diasAtras": 23,
+      "tema": null,
+      "peso": 161,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-90",
+      "diasAtras": 22,
+      "tema": "historico-90-dias",
+      "peso": 139,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-91",
+      "diasAtras": 22,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-90",
+      "diasAtras": 22,
+      "tema": "nomes-desconhecidos",
+      "peso": 27,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-90",
+      "diasAtras": 21,
+      "tema": "busca-nao-encontra",
+      "peso": 45,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-92",
+      "diasAtras": 21,
+      "tema": null,
+      "peso": 72,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-29934",
+      "diasAtras": 20,
+      "tema": "historico-90-dias",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Por que no site eu vejo mais e no app não?"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-101",
+      "diasAtras": 20,
+      "tema": "extrato-demora",
+      "peso": 9,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-101",
+      "diasAtras": 20,
+      "tema": "filtro-entradas",
+      "peso": 11,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-101",
+      "diasAtras": 20,
+      "tema": "historico-90-dias",
+      "peso": 24,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-29950",
+      "diasAtras": 19,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "No modo escuro mal dá para ler os valores em vermelho."
+    },
+    {
+      "id": "LK-extrato-geral-103",
+      "diasAtras": 19,
+      "tema": null,
+      "peso": 169,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-100",
+      "diasAtras": 19,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 3,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-30044",
+      "diasAtras": 18,
+      "tema": "busca-nao-encontra",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Procuro pelo nome da loja e não acha nada."
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-100",
+      "diasAtras": 18,
+      "tema": "exportar-escondido",
+      "peso": 9,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-100",
+      "diasAtras": 18,
+      "tema": "filtro-entradas",
+      "peso": 5,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-101",
+      "diasAtras": 18,
+      "tema": "saldo-confuso",
+      "peso": 18,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-100",
+      "diasAtras": 17,
+      "tema": "busca-nao-encontra",
+      "peso": 41,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-102",
+      "diasAtras": 17,
+      "tema": null,
+      "peso": 76,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-105",
+      "diasAtras": 17,
+      "tema": null,
+      "peso": 381,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-100",
+      "diasAtras": 17,
+      "tema": "nomes-desconhecidos",
+      "peso": 31,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-101",
+      "diasAtras": 16,
+      "tema": "exportar-escondido",
+      "peso": 15,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-101",
+      "diasAtras": 16,
+      "tema": null,
+      "peso": 115,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-100",
+      "diasAtras": 16,
+      "tema": "saldo-confuso",
+      "peso": 20,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-30177",
+      "diasAtras": 15,
+      "tema": "historico-90-dias",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Para o imposto de renda tenho que ligar no banco. Absurdo em 2026."
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-101",
+      "diasAtras": 15,
+      "tema": "busca-nao-encontra",
+      "peso": 18,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-100",
+      "diasAtras": 15,
+      "tema": "extrato-demora",
+      "peso": 11,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-104",
+      "diasAtras": 15,
+      "tema": null,
+      "peso": 296,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-100",
+      "diasAtras": 15,
+      "tema": "historico-90-dias",
+      "peso": 146,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-101",
+      "diasAtras": 15,
+      "tema": "nomes-desconhecidos",
+      "peso": 20,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-101",
+      "diasAtras": 14,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-114",
+      "diasAtras": 13,
+      "tema": null,
+      "peso": 326,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-30290",
+      "diasAtras": 12,
+      "tema": "extrato-demora",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Todo dia 1º o extrato fica carregando um tempão."
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-110",
+      "diasAtras": 12,
+      "tema": "busca-nao-encontra",
+      "peso": 41,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-110",
+      "diasAtras": 12,
+      "tema": "exportar-escondido",
+      "peso": 9,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-111",
+      "diasAtras": 12,
+      "tema": "extrato-demora",
+      "peso": 9,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-111",
+      "diasAtras": 12,
+      "tema": "filtro-entradas",
+      "peso": 10,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-111",
+      "diasAtras": 12,
+      "tema": null,
+      "peso": 126,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-111",
+      "diasAtras": 12,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 4,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-111",
+      "diasAtras": 12,
+      "tema": "nomes-desconhecidos",
+      "peso": 20,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-115",
+      "diasAtras": 11,
+      "tema": null,
+      "peso": 419,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-110",
+      "diasAtras": 11,
+      "tema": "saldo-confuso",
+      "peso": 18,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-110",
+      "diasAtras": 10,
+      "tema": "extrato-demora",
+      "peso": 11,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-112",
+      "diasAtras": 10,
+      "tema": null,
+      "peso": 84,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-111",
+      "diasAtras": 10,
+      "tema": "historico-90-dias",
+      "peso": 22,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-110",
+      "diasAtras": 10,
+      "tema": "nomes-desconhecidos",
+      "peso": 29,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-30512",
+      "diasAtras": 9,
+      "tema": "historico-90-dias",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Preciso ver um lançamento de março e o app só mostra 90 dias."
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-111",
+      "diasAtras": 9,
+      "tema": "saldo-confuso",
+      "peso": 16,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-113",
+      "diasAtras": 8,
+      "tema": null,
+      "peso": 186,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-110",
+      "diasAtras": 8,
+      "tema": "historico-90-dias",
+      "peso": 133,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-111",
+      "diasAtras": 7,
+      "tema": "busca-nao-encontra",
+      "peso": 17,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-111",
+      "diasAtras": 7,
+      "tema": "exportar-escondido",
+      "peso": 16,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-110",
+      "diasAtras": 7,
+      "tema": "filtro-entradas",
+      "peso": 5,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-110",
+      "diasAtras": 7,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 3,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-120",
+      "diasAtras": 6,
+      "tema": "exportar-escondido",
+      "peso": 8,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-121",
+      "diasAtras": 5,
+      "tema": "extrato-demora",
+      "peso": 11,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-123",
+      "diasAtras": 5,
+      "tema": null,
+      "peso": 169,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-120",
+      "diasAtras": 5,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 2,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-120",
+      "diasAtras": 5,
+      "tema": "nomes-desconhecidos",
+      "peso": 29,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-exportar-escondido-121",
+      "diasAtras": 4,
+      "tema": "exportar-escondido",
+      "peso": 13,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-121",
+      "diasAtras": 4,
+      "tema": "saldo-confuso",
+      "peso": 17,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-120",
+      "diasAtras": 3,
+      "tema": "busca-nao-encontra",
+      "peso": 39,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-122",
+      "diasAtras": 3,
+      "tema": null,
+      "peso": 76,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-nomes-desconhecidos-121",
+      "diasAtras": 3,
+      "tema": "nomes-desconhecidos",
+      "peso": 19,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-121",
+      "diasAtras": 2,
+      "tema": "filtro-entradas",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-125",
+      "diasAtras": 2,
+      "tema": null,
+      "peso": 382,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-120",
+      "diasAtras": 2,
+      "tema": "historico-90-dias",
+      "peso": 134,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-saldo-confuso-120",
+      "diasAtras": 2,
+      "tema": "saldo-confuso",
+      "peso": 18,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-busca-nao-encontra-121",
+      "diasAtras": 1,
+      "tema": "busca-nao-encontra",
+      "peso": 17,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-121",
+      "diasAtras": 1,
+      "tema": null,
+      "peso": 115,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-extrato-demora-120",
+      "diasAtras": 0,
+      "tema": "extrato-demora",
+      "peso": 13,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-filtro-entradas-120",
+      "diasAtras": 0,
+      "tema": "filtro-entradas",
+      "peso": 4,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-geral-124",
+      "diasAtras": 0,
+      "tema": null,
+      "peso": 296,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-historico-90-dias-121",
+      "diasAtras": 0,
+      "tema": "historico-90-dias",
+      "peso": 22,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-extrato-modo-escuro-ilegivel-121",
+      "diasAtras": 0,
+      "tema": "modo-escuro-ilegivel",
+      "peso": 3,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    }
+  ]
+}

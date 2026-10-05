@@ -1,0 +1,49 @@
+{
+  "formato": "catalogo/1",
+  "produtos": [
+    {
+      "id": "cambio",
+      "nome": "Câmbio",
+      "descricao": "Compra e envio de moeda estrangeira pelo app",
+      "telas": ["Simular", "Revisar", "Beneficiário", "Confirmar", "Acompanhar", "Comprovante"]
+    },
+    {
+      "id": "extrato",
+      "nome": "Extrato",
+      "descricao": "Extrato da conta corrente no app e no internet banking",
+      "telas": ["Extrato", "Período", "Busca", "Detalhe", "Comprovante", "Exportar"]
+    },
+    {
+      "id": "pix",
+      "nome": "Pix",
+      "descricao": "Transferências, agendamentos e chaves Pix",
+      "telas": ["Área Pix", "Colar chave", "Valor", "Confirmar", "Agendados", "Minhas chaves"]
+    }
+  ],
+  "fontes": [
+    {
+      "id": "likert",
+      "nome": "Likert",
+      "descricao": "Notas de 1 a 5 e comentários abertos deixados no app",
+      "unidade": "respostas",
+      "unidadeDor": "menções",
+      "unidadeNota": "menções"
+    },
+    {
+      "id": "voz",
+      "nome": "Voz do Cliente",
+      "descricao": "Ligações em que clientes relatam dores a atendentes",
+      "unidade": "ligações",
+      "unidadeDor": "ligações",
+      "unidadeNota": "ligações"
+    },
+    {
+      "id": "fullstory",
+      "nome": "FullStory",
+      "descricao": "Comportamento real de navegação e sinais de frustração",
+      "unidade": "sessões",
+      "unidadeDor": "clientes afetados",
+      "unidadeNota": "clientes"
+    }
+  ]
+}

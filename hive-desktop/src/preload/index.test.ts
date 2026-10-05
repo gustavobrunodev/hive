@@ -443,6 +443,47 @@ describe('preload: window.hive bridge', () => {
     expect(ipcRenderer.invoke).toHaveBeenCalledWith('designStudio:conversations')
   })
 
+  // Design Studio (Landing 19): the pages' reads and the generation. Each
+  // method forwards to its channel; the generation's events arrive on a
+  // listener of their own, with no start/stop handshake.
+  describe('hive.designStudio (lote 2)', () => {
+    type DesignStudioBridge = Record<string, (...args: unknown[]) => unknown>
+    const ds = (): DesignStudioBridge =>
+      (exposedGlobals().get('hive') as { designStudio: DesignStudioBridge }).designStudio
+
+    it.each([
+      ['dados', [], 'designStudio:dados'],
+      ['relatorio', ['Pix/relatorios/voz/a.md'], 'designStudio:relatorio'],
+      [
+        'planejarGeracao',
+        [{ produto: 'Pix', fonte: 'voz', agente: { id: 'devin', nome: 'Devin', modelo: null } }],
+        'designStudio:planejarGeracao'
+      ],
+      ['abandonarGeracao', ['turno-1'], 'designStudio:abandonarGeracao'],
+      ['geracaoAtual', [], 'designStudio:geracaoAtual']
+    ])('%s() invokes its channel with its arguments', async (method, args, channel) => {
+      await expect(ds()[method](...args)).resolves.toBe(`invoked:${channel}`)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith(channel, ...args)
+    })
+
+    it('onGeracao relays each event, and unsubscribing removes only its listener', () => {
+      const onEvent = vi.fn()
+      const unsubscribe = ds().onGeracao(onEvent) as () => void
+      expect(ipcRenderer.on).toHaveBeenCalledWith('designStudio:geracao', expect.any(Function))
+      const listener = vi
+        .mocked(ipcRenderer.on)
+        .mock.calls.find(([ch]) => ch === 'designStudio:geracao')?.[1] as (
+        event: unknown,
+        evento: unknown
+      ) => void
+      listener({}, { turnId: 't', estado: 'gerando', passo: 2 })
+      expect(onEvent).toHaveBeenCalledWith({ turnId: 't', estado: 'gerando', passo: 2 })
+      unsubscribe()
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('designStudio:geracao', listener)
+      expect(ipcRenderer.send).not.toHaveBeenCalledWith('designStudio:geracao:stop')
+    })
+  })
+
   it('hive.workflows.list(workspace) invokes "workflows:list" with workspace', async () => {
     const hive = exposedGlobals().get('hive') as {
       workflows: { list: (w: string) => Promise<unknown> }

@@ -56,6 +56,7 @@
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build:brand-artwork": "node scripts/gen-brand-artwork.mjs",
+    "build:design-studio-data": "node scripts/gen-design-studio-data.mjs",
     "build": "npm run typecheck && electron-vite build",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
@@ -80,7 +81,8 @@
     "remark-gfm": "^4.0.1",
     "semver": "^7.8.5",
     "sherpa-onnx-node": "^1.13.7",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

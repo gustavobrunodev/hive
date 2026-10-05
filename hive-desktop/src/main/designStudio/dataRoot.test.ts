@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
 import { join } from 'path'
-import { DATA_ROOT_DIR, documentsDir, resolveDataRoot } from './dataRoot'
+import {
+  DATA_ROOT_DIR,
+  documentsDir,
+  ensureProdutoFolders,
+  resolveDataRoot,
+  resolveResourcesDir
+} from './dataRoot'
+import { readCatalogo } from './catalogo'
 
 /**
  * Design Studio — where the module's data lives (Landing 3 and 11).
@@ -65,5 +74,137 @@ describe('designStudio data root', () => {
       if (before.docs === undefined) delete process.env.HIVE_E2E_DOCUMENTS
       else process.env.HIVE_E2E_DOCUMENTS = before.docs
     }
+  })
+})
+
+/**
+ * Design Studio — the first opening of the module, and the resources it ships
+ * with (criterion 10, Landing 6 and 16).
+ */
+const APP_ROOT = join(__dirname, '..', '..', '..')
+
+/** Every file under `dir`, relative, with `/`. */
+function filesUnder(dir: string, prefix = ''): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name)
+    const rel = prefix ? `${prefix}/${name}` : name
+    return statSync(full).isDirectory() ? filesUnder(full, rel) : [rel]
+  })
+}
+
+const TELAS: Array<[string, number, string]> = [
+  ['Câmbio', 0, 'Simular'],
+  ['Câmbio', 1, 'Revisar'],
+  ['Câmbio', 2, 'Beneficiário'],
+  ['Câmbio', 3, 'Confirmar'],
+  ['Câmbio', 4, 'Acompanhar'],
+  ['Câmbio', 5, 'Comprovante'],
+  ['Extrato', 0, 'Extrato'],
+  ['Extrato', 1, 'Período'],
+  ['Extrato', 2, 'Busca'],
+  ['Extrato', 3, 'Detalhe'],
+  ['Extrato', 4, 'Comprovante'],
+  ['Extrato', 5, 'Exportar'],
+  ['Pix', 0, 'Área Pix'],
+  ['Pix', 1, 'Colar chave'],
+  ['Pix', 2, 'Valor'],
+  ['Pix', 3, 'Confirmar'],
+  ['Pix', 4, 'Agendados'],
+  ['Pix', 5, 'Minhas chaves']
+]
+
+describe('the first opening of the module', () => {
+  const resources = resolveResourcesDir({
+    isPackaged: false,
+    resourcesPath: '/nada',
+    appPath: APP_ROOT
+  })
+  const catalogo = readCatalogo(resources)
+
+  it('C10a: an empty <raiz> gets the Câmbio, Extrato and Pix folders, and no file under */relatorios', () => {
+    const root = join(mkdtempSync(join(tmpdir(), 'hive-ds-raiz-')), 'Design Studio')
+    ensureProdutoFolders(root, catalogo.produtos)
+    expect(readdirSync(root).sort()).toEqual(['Câmbio', 'Extrato', 'Pix'])
+    for (const produto of ['Câmbio', 'Extrato', 'Pix']) {
+      expect(statSync(join(root, produto)).isDirectory()).toBe(true)
+      expect(filesUnder(join(root, produto))).toEqual([])
+    }
+    // Opening again changes nothing.
+    ensureProdutoFolders(root, catalogo.produtos)
+    expect(readdirSync(root).sort()).toEqual(['Câmbio', 'Extrato', 'Pix'])
+  })
+
+  it('C10a: the catalog brings exactly the three Produtos, in order', () => {
+    expect(catalogo.produtos.map((produto) => produto.nome)).toEqual(['Câmbio', 'Extrato', 'Pix'])
+    expect(catalogo.produtos.map((produto) => produto.telas.length)).toEqual([6, 6, 6])
+  })
+
+  it.each(TELAS)('C10a: %s, screen %i of the journey is %s', (produto, index, tela) => {
+    expect(catalogo.produtos.find((entry) => entry.nome === produto)?.telas[index]).toBe(tela)
+  })
+
+  it('leaves a Produto it cannot create for the next opening', () => {
+    const base = mkdtempSync(join(tmpdir(), 'hive-ds-raiz-'))
+    writeFileSync(join(base, 'arquivo'), 'x')
+    expect(() => ensureProdutoFolders(join(base, 'arquivo'), catalogo.produtos)).not.toThrow()
+  })
+
+  it('refuses a catalog file in another format', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hive-ds-catalogo-'))
+    writeFileSync(
+      join(dir, 'catalogo.json'),
+      JSON.stringify({ formato: 'catalogo/2', produtos: [] })
+    )
+    expect(() => readCatalogo(dir)).toThrow(/catalogo\/1/)
+  })
+})
+
+describe('the module resources', () => {
+  /** What every assembly must carry: the catalog, nine data files and three skills. */
+  const EXPECTED = [
+    'catalogo.json',
+    ...['cambio', 'extrato', 'pix'].flatMap((produto) =>
+      ['likert', 'voz', 'fullstory'].map((fonte) => `dados-de-exemplo/${produto}/${fonte}.json`)
+    ),
+    ...['likert', 'voz', 'fullstory'].flatMap((fonte) => [
+      `skills/relatorio-${fonte}/SKILL.md`,
+      `skills/relatorio-${fonte}/scripts/relatorio.mjs`,
+      `skills/relatorio-${fonte}/scripts/comum.mjs`
+    ])
+  ].sort()
+
+  it('C10b: resolves inside app.asar.unpacked when packaged, and under the app root otherwise', () => {
+    const resourcesPath = join('/opt', 'Hive', 'resources')
+    expect(
+      resolveResourcesDir({
+        isPackaged: true,
+        resourcesPath,
+        appPath: join(resourcesPath, 'app.asar')
+      })
+    ).toBe(join(resourcesPath, 'app.asar.unpacked', 'resources', 'design-studio'))
+    expect(resolveResourcesDir({ isPackaged: false, resourcesPath, appPath: APP_ROOT })).toBe(
+      join(APP_ROOT, 'resources', 'design-studio')
+    )
+  })
+
+  it('C10b: the unpackaged directory carries the catalog, the 9 data files and the 3 skills', () => {
+    const dir = resolveResourcesDir({
+      isPackaged: false,
+      resourcesPath: '/nada',
+      appPath: APP_ROOT
+    })
+    expect(filesUnder(dir).sort()).toEqual(EXPECTED)
+  })
+
+  it('C10b: the packaged directory carries the same — resources/** is packed and unpacked out of the asar', () => {
+    // The packaged tree is electron-builder's copy of `<app>/resources/**`
+    // into `app.asar.unpacked/resources/**`; both lists have to name it, on
+    // every platform block, or the packaged directory is empty.
+    const builder = readFileSync(join(APP_ROOT, 'electron-builder.yml'), 'utf-8')
+    const files = builder.match(/^ {2,4}- 'resources\/\*\*'$/gm) ?? []
+    expect(files.length).toBeGreaterThanOrEqual(1)
+    expect(builder).toMatch(/^asarUnpack:\n {2}- resources\/\*\*$/m)
+    for (const file of EXPECTED)
+      expect(existsSync(join(APP_ROOT, 'resources', 'design-studio', file))).toBe(true)
   })
 })

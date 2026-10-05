@@ -1,3 +1,4 @@
+import { mkdirSync } from 'fs'
 import { join } from 'path'
 import { isE2ESeamEnabled } from '../bmadService'
 
@@ -38,4 +39,52 @@ export function documentsDir(documents: string, env: NodeJS.ProcessEnv = process
  */
 export function resolveDataRoot(documents: string, env: NodeJS.ProcessEnv = process.env): string {
   return join(documentsDir(documents, env), DATA_ROOT_DIR)
+}
+
+/** Where the app is running from — the inputs `resolveResourcesDir` needs. */
+export interface AppLocation {
+  isPackaged: boolean
+  /** `process.resourcesPath`: where the installer put `app.asar` and its unpacked tree. */
+  resourcesPath: string
+  /**
+   * The app's root — where `package.json` and `resources/` sit. Packaged, that
+   * is `app.getAppPath()` (the asar). Unpackaged it is NOT always
+   * `app.getAppPath()`: launched with the built entry file, as the E2E does,
+   * Electron answers that file's folder (`out/main`, measured), so the caller
+   * passes the folder two levels above the built main instead.
+   */
+  appPath: string
+}
+
+/**
+ * The module's embedded resources — the catalog, the sample data and the
+ * report skills (Landing 6). Read-only, outside `<raiz>`: the PM's folder holds
+ * what the module produced, never what it ships with.
+ *
+ * Packaged, they live outside the asar (`asarUnpack: resources/**`), because
+ * the agent's `node` runs the skill scripts and cannot read inside an archive.
+ */
+export function resolveResourcesDir(location: AppLocation): string {
+  return location.isPackaged
+    ? join(location.resourcesPath, 'app.asar.unpacked', 'resources', 'design-studio')
+    : join(location.appPath, 'resources', 'design-studio')
+}
+
+/**
+ * Makes sure every Produto of the catalog has its folder in `<raiz>` — what
+ * opening the module does on a machine that never opened it (criterion 10).
+ * Folders only: no Relatório exists until the person asks for one. A folder
+ * that cannot be created is left for the next opening rather than failing it.
+ */
+export function ensureProdutoFolders(
+  root: string,
+  produtos: ReadonlyArray<{ nome: string }>
+): void {
+  for (const produto of produtos) {
+    try {
+      mkdirSync(join(root, produto.nome), { recursive: true })
+    } catch {
+      // Unwritable Documents: the pages still open, showing no Relatório.
+    }
+  }
 }

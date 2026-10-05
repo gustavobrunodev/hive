@@ -37,6 +37,13 @@ import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ChatSessionMeta, StoredChatSession, StoredCompaction } from '../main/chatHistoryStore'
 import type { ModuleConversationMeta } from '../main/designStudio/conversations'
+import type { Catalogo } from '../main/designStudio/catalogo'
+import type { RelatorioDeFonte } from '../main/designStudio/relatorioFormato'
+import type {
+  EventoDeGeracao,
+  PedidoDeGeracao,
+  PlanoDeGeracao
+} from '../main/designStudio/relatorioGeracao'
 import type { AppInfo, UpdateEvent } from '../main/updateService'
 import type {
   GitBranches,
@@ -193,6 +200,18 @@ declare global {
       designStudio: {
         /** Every module conversation, tagged with its Produto folder (Landing 10). Unsorted. */
         conversations(): Promise<ModuleConversationMeta[]>
+        /** The catalog and the Relatórios in use; creates the Produto folders (Landing 19). */
+        dados(): Promise<{ catalogo: Catalogo; relatorios: RelatorioDeFonte[] }>
+        /** One Relatório by its path relative to `<raiz>`, or `null` when it is gone. */
+        relatorio(caminho: string): Promise<RelatorioDeFonte | null>
+        /** Plans a generation (Landing 18): turn id, prompt and scope — or `ocupado`. */
+        planejarGeracao(pedido: PedidoDeGeracao): Promise<PlanoDeGeracao>
+        /** The send failed: forget the planned generation. */
+        abandonarGeracao(turnId: string): Promise<void>
+        /** The generation in progress, as its latest event. */
+        geracaoAtual(): Promise<EventoDeGeracao | null>
+        /** Subscribes to the generation's life; returns the unsubscribe. */
+        onGeracao(onEvent: (evento: EventoDeGeracao) => void): () => void
       }
       /** App self-update (app-settings): version info + user-driven update flow — see preload/index.ts for the channel design. */
       app: {

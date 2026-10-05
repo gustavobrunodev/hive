@@ -1,0 +1,2685 @@
+{
+  "formato": "dados-de-exemplo/1",
+  "produto": "Câmbio",
+  "fonte": "likert",
+  "volume": 6912,
+  "categorias": [
+    {
+      "id": "status",
+      "nome": "Status e avisos",
+      "padrao": "O cliente descobre o que aconteceu com a remessa fora do app: no extrato, pelo beneficiário ou ligando.",
+      "sugestao": "Mostrar cada etapa do envio e avisar na hora em que algo dá errado, com o motivo e o que fazer."
+    },
+    {
+      "id": "cotacao",
+      "nome": "Cotação e taxas",
+      "padrao": "A taxa muda entre simular e confirmar, e o custo total só aparece no fim.",
+      "sugestao": "Travar a cotação por alguns minutos e mostrar o total debitado desde a simulação."
+    },
+    {
+      "id": "beneficiario",
+      "nome": "Cadastro do beneficiário",
+      "padrao": "SWIFT, IBAN e endereço numa tela só fazem o cliente desistir ou errar os dados.",
+      "sugestao": "Dividir o cadastro em passos curtos e validar o IBAN enquanto o cliente digita."
+    },
+    {
+      "id": "confirmacao",
+      "nome": "Confirmação e limites",
+      "padrao": "O botão de confirmar fica inativo sem dizer o que falta, e o limite só aparece tarde.",
+      "sugestao": "Dizer o que falta antes do toque e mostrar o limite já na simulação."
+    },
+    {
+      "id": "comprovante",
+      "nome": "Comprovantes",
+      "padrao": "Quem paga estudos ou aluguel fora precisa do comprovante e não acha onde baixar.",
+      "sugestao": "Deixar o comprovante em PDF a um toque, na própria tela de acompanhamento."
+    }
+  ],
+  "temas": [
+    {
+      "id": "cotacao-muda",
+      "titulo": "A cotação muda entre simular e confirmar",
+      "resumo": "O cliente simula com uma taxa e encontra outra na confirmação, sem aviso de quanto tempo a cotação vale.",
+      "tela": "Confirmar",
+      "categoria": "cotacao"
+    },
+    {
+      "id": "quando-chega",
+      "titulo": "Não sei quando o dinheiro chega lá fora",
+      "resumo": "Depois de enviar, o cliente só vê “até 2 dias úteis” e não sabe em que etapa a remessa está.",
+      "tela": "Acompanhar",
+      "categoria": "status"
+    },
+    {
+      "id": "taxas-no-final",
+      "titulo": "As taxas aparecem só no final",
+      "resumo": "IOF e tarifa só ficam visíveis na última tela, depois que o cliente já decidiu o valor.",
+      "tela": "Revisar",
+      "categoria": "cotacao"
+    },
+    {
+      "id": "cadastro-beneficiario",
+      "titulo": "O cadastro do beneficiário é longo demais",
+      "resumo": "SWIFT, IBAN e endereço completo em uma tela só; muita gente desiste no meio.",
+      "tela": "Beneficiário",
+      "categoria": "beneficiario"
+    },
+    {
+      "id": "comprovante-escola",
+      "titulo": "Não encontro o comprovante para a escola",
+      "resumo": "Clientes que pagam estudos fora precisam do comprovante em PDF e não acham onde baixar.",
+      "tela": "Comprovante",
+      "categoria": "comprovante"
+    },
+    {
+      "id": "app-lento-simular",
+      "titulo": "A simulação demora a responder",
+      "resumo": "Trocar a moeda ou o valor leva segundos para atualizar a cotação.",
+      "tela": "Simular",
+      "categoria": "cotacao"
+    },
+    {
+      "id": "limite-diario",
+      "titulo": "Não sei qual é o meu limite diário de compra",
+      "resumo": "O limite de operações por dia não aparece em lugar nenhum antes da confirmação.",
+      "tela": "Simular",
+      "categoria": "confirmacao"
+    },
+    {
+      "id": "chat-nao-resolve",
+      "titulo": "O chat não resolve problema de câmbio",
+      "resumo": "O assistente do app responde com textos genéricos e encaminha para a central.",
+      "tela": null,
+      "categoria": "status"
+    }
+  ],
+  "registros": [
+    {
+      "id": "LK-cambio-app-lento-simular-01",
+      "diasAtras": 89,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-01",
+      "diasAtras": 89,
+      "tema": "cadastro-beneficiario",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-00",
+      "diasAtras": 89,
+      "tema": "comprovante-escola",
+      "peso": 4,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-00",
+      "diasAtras": 89,
+      "tema": "cotacao-muda",
+      "peso": 21,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-01",
+      "diasAtras": 89,
+      "tema": null,
+      "peso": 45,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-04",
+      "diasAtras": 89,
+      "tema": null,
+      "peso": 129,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-00",
+      "diasAtras": 89,
+      "tema": "limite-diario",
+      "peso": 2,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-00",
+      "diasAtras": 89,
+      "tema": "quando-chega",
+      "peso": 18,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-00",
+      "diasAtras": 88,
+      "tema": "cadastro-beneficiario",
+      "peso": 11,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-05",
+      "diasAtras": 88,
+      "tema": null,
+      "peso": 165,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-01",
+      "diasAtras": 88,
+      "tema": "quando-chega",
+      "peso": 5,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-01",
+      "diasAtras": 88,
+      "tema": "taxas-no-final",
+      "peso": 7,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-00",
+      "diasAtras": 87,
+      "tema": "app-lento-simular",
+      "peso": 2,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-01",
+      "diasAtras": 87,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-02",
+      "diasAtras": 87,
+      "tema": null,
+      "peso": 30,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-01",
+      "diasAtras": 87,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-00",
+      "diasAtras": 86,
+      "tema": "taxas-no-final",
+      "peso": 12,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-00",
+      "diasAtras": 85,
+      "tema": "chat-nao-resolve",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-01",
+      "diasAtras": 85,
+      "tema": "comprovante-escola",
+      "peso": 5,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-01",
+      "diasAtras": 85,
+      "tema": "cotacao-muda",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-03",
+      "diasAtras": 85,
+      "tema": null,
+      "peso": 74,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-11",
+      "diasAtras": 83,
+      "tema": "cotacao-muda",
+      "peso": 4,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-11",
+      "diasAtras": 83,
+      "tema": "quando-chega",
+      "peso": 5,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-10",
+      "diasAtras": 82,
+      "tema": "cadastro-beneficiario",
+      "peso": 9,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-13",
+      "diasAtras": 82,
+      "tema": null,
+      "peso": 71,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-11",
+      "diasAtras": 82,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-10",
+      "diasAtras": 81,
+      "tema": "quando-chega",
+      "peso": 18,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-10",
+      "diasAtras": 80,
+      "tema": "app-lento-simular",
+      "peso": 2,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-11",
+      "diasAtras": 80,
+      "tema": "cadastro-beneficiario",
+      "peso": 6,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-10",
+      "diasAtras": 80,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-12",
+      "diasAtras": 80,
+      "tema": null,
+      "peso": 29,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-15",
+      "diasAtras": 80,
+      "tema": null,
+      "peso": 158,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-10",
+      "diasAtras": 80,
+      "tema": "limite-diario",
+      "peso": 2,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-10",
+      "diasAtras": 79,
+      "tema": "comprovante-escola",
+      "peso": 4,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-11",
+      "diasAtras": 79,
+      "tema": null,
+      "peso": 43,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-10",
+      "diasAtras": 79,
+      "tema": "taxas-no-final",
+      "peso": 12,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-11",
+      "diasAtras": 78,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-11",
+      "diasAtras": 78,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-10",
+      "diasAtras": 78,
+      "tema": "cotacao-muda",
+      "peso": 20,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-14",
+      "diasAtras": 78,
+      "tema": null,
+      "peso": 124,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-11",
+      "diasAtras": 77,
+      "tema": "comprovante-escola",
+      "peso": 5,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-11",
+      "diasAtras": 77,
+      "tema": "taxas-no-final",
+      "peso": 8,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-21",
+      "diasAtras": 76,
+      "tema": "cadastro-beneficiario",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-21",
+      "diasAtras": 76,
+      "tema": "quando-chega",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-21",
+      "diasAtras": 75,
+      "tema": "comprovante-escola",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-21",
+      "diasAtras": 75,
+      "tema": "cotacao-muda",
+      "peso": 5,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-24",
+      "diasAtras": 75,
+      "tema": null,
+      "peso": 120,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-20",
+      "diasAtras": 75,
+      "tema": "taxas-no-final",
+      "peso": 13,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-21",
+      "diasAtras": 74,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-20",
+      "diasAtras": 74,
+      "tema": "cadastro-beneficiario",
+      "peso": 9,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-21",
+      "diasAtras": 74,
+      "tema": null,
+      "peso": 42,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-21",
+      "diasAtras": 73,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-20",
+      "diasAtras": 73,
+      "tema": "comprovante-escola",
+      "peso": 4,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-20",
+      "diasAtras": 73,
+      "tema": "cotacao-muda",
+      "peso": 24,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-22",
+      "diasAtras": 73,
+      "tema": null,
+      "peso": 28,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-25",
+      "diasAtras": 73,
+      "tema": null,
+      "peso": 154,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-20",
+      "diasAtras": 73,
+      "tema": "limite-diario",
+      "peso": 2,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-20",
+      "diasAtras": 72,
+      "tema": "app-lento-simular",
+      "peso": 3,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-20",
+      "diasAtras": 71,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-23",
+      "diasAtras": 71,
+      "tema": null,
+      "peso": 69,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-21",
+      "diasAtras": 71,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-20",
+      "diasAtras": 71,
+      "tema": "quando-chega",
+      "peso": 21,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-21",
+      "diasAtras": 70,
+      "tema": "taxas-no-final",
+      "peso": 8,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-30",
+      "diasAtras": 69,
+      "tema": "cotacao-muda",
+      "peso": 25,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-33",
+      "diasAtras": 69,
+      "tema": null,
+      "peso": 63,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-31",
+      "diasAtras": 69,
+      "tema": "quando-chega",
+      "peso": 5,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-30",
+      "diasAtras": 68,
+      "tema": "app-lento-simular",
+      "peso": 3,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-31",
+      "diasAtras": 68,
+      "tema": "cadastro-beneficiario",
+      "peso": 5,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-31",
+      "diasAtras": 68,
+      "tema": "taxas-no-final",
+      "peso": 9,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-30",
+      "diasAtras": 67,
+      "tema": "comprovante-escola",
+      "peso": 4,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-31",
+      "diasAtras": 67,
+      "tema": "cotacao-muda",
+      "peso": 5,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-32",
+      "diasAtras": 67,
+      "tema": null,
+      "peso": 26,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-30",
+      "diasAtras": 67,
+      "tema": "quando-chega",
+      "peso": 20,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-31",
+      "diasAtras": 66,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-35",
+      "diasAtras": 66,
+      "tema": null,
+      "peso": 140,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-30",
+      "diasAtras": 65,
+      "tema": "chat-nao-resolve",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-31",
+      "diasAtras": 65,
+      "tema": "comprovante-escola",
+      "peso": 6,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-31",
+      "diasAtras": 65,
+      "tema": null,
+      "peso": 38,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-31",
+      "diasAtras": 65,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-34",
+      "diasAtras": 64,
+      "tema": null,
+      "peso": 110,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-30",
+      "diasAtras": 63,
+      "tema": "cadastro-beneficiario",
+      "peso": 8,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-31",
+      "diasAtras": 63,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-30",
+      "diasAtras": 63,
+      "tema": "limite-diario",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-30",
+      "diasAtras": 63,
+      "tema": "taxas-no-final",
+      "peso": 13,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-41",
+      "diasAtras": 62,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-41",
+      "diasAtras": 62,
+      "tema": "comprovante-escola",
+      "peso": 5,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-41",
+      "diasAtras": 61,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-41",
+      "diasAtras": 61,
+      "tema": "cotacao-muda",
+      "peso": 6,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-42",
+      "diasAtras": 61,
+      "tema": null,
+      "peso": 27,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-41",
+      "diasAtras": 61,
+      "tema": "quando-chega",
+      "peso": 5,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-40",
+      "diasAtras": 60,
+      "tema": "app-lento-simular",
+      "peso": 3,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-41",
+      "diasAtras": 60,
+      "tema": "cadastro-beneficiario",
+      "peso": 6,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-40",
+      "diasAtras": 60,
+      "tema": "comprovante-escola",
+      "peso": 4,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-40",
+      "diasAtras": 59,
+      "tema": "chat-nao-resolve",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-40",
+      "diasAtras": 59,
+      "tema": "cotacao-muda",
+      "peso": 26,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-43",
+      "diasAtras": 59,
+      "tema": null,
+      "peso": 67,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-44",
+      "diasAtras": 59,
+      "tema": null,
+      "peso": 117,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-40",
+      "diasAtras": 59,
+      "tema": "limite-diario",
+      "peso": 2,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-41",
+      "diasAtras": 59,
+      "tema": "taxas-no-final",
+      "peso": 7,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-40",
+      "diasAtras": 58,
+      "tema": "cadastro-beneficiario",
+      "peso": 9,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-45",
+      "diasAtras": 57,
+      "tema": null,
+      "peso": 149,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-41",
+      "diasAtras": 57,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-40",
+      "diasAtras": 57,
+      "tema": "taxas-no-final",
+      "peso": 12,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-41",
+      "diasAtras": 56,
+      "tema": null,
+      "peso": 41,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-40",
+      "diasAtras": 56,
+      "tema": "quando-chega",
+      "peso": 20,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-50",
+      "diasAtras": 55,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-50",
+      "diasAtras": 55,
+      "tema": "comprovante-escola",
+      "peso": 4,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-55",
+      "diasAtras": 55,
+      "tema": null,
+      "peso": 163,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-51",
+      "diasAtras": 55,
+      "tema": "taxas-no-final",
+      "peso": 8,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-50",
+      "diasAtras": 54,
+      "tema": "app-lento-simular",
+      "peso": 2,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-51",
+      "diasAtras": 54,
+      "tema": "cadastro-beneficiario",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-50",
+      "diasAtras": 54,
+      "tema": "cotacao-muda",
+      "peso": 23,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-51",
+      "diasAtras": 53,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-51",
+      "diasAtras": 53,
+      "tema": "comprovante-escola",
+      "peso": 5,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-54",
+      "diasAtras": 53,
+      "tema": null,
+      "peso": 127,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-51",
+      "diasAtras": 53,
+      "tema": "quando-chega",
+      "peso": 5,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-51",
+      "diasAtras": 52,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-51",
+      "diasAtras": 52,
+      "tema": "cotacao-muda",
+      "peso": 5,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-53",
+      "diasAtras": 52,
+      "tema": null,
+      "peso": 73,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-51",
+      "diasAtras": 52,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-50",
+      "diasAtras": 51,
+      "tema": "quando-chega",
+      "peso": 18,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-52",
+      "diasAtras": 50,
+      "tema": null,
+      "peso": 30,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-50",
+      "diasAtras": 50,
+      "tema": "limite-diario",
+      "peso": 2,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-50",
+      "diasAtras": 50,
+      "tema": "taxas-no-final",
+      "peso": 12,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-50",
+      "diasAtras": 49,
+      "tema": "cadastro-beneficiario",
+      "peso": 9,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-51",
+      "diasAtras": 49,
+      "tema": null,
+      "peso": 44,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-61",
+      "diasAtras": 48,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-61",
+      "diasAtras": 48,
+      "tema": "cotacao-muda",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-61",
+      "diasAtras": 48,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-61",
+      "diasAtras": 48,
+      "tema": "taxas-no-final",
+      "peso": 8,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-63",
+      "diasAtras": 47,
+      "tema": null,
+      "peso": 71,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-61",
+      "diasAtras": 46,
+      "tema": "cadastro-beneficiario",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-60",
+      "diasAtras": 46,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-60",
+      "diasAtras": 46,
+      "tema": "cotacao-muda",
+      "peso": 25,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-64",
+      "diasAtras": 46,
+      "tema": null,
+      "peso": 124,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-60",
+      "diasAtras": 46,
+      "tema": "taxas-no-final",
+      "peso": 12,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-61",
+      "diasAtras": 45,
+      "tema": "comprovante-escola",
+      "peso": 6,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-61",
+      "diasAtras": 44,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-60",
+      "diasAtras": 44,
+      "tema": "cadastro-beneficiario",
+      "peso": 10,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-65",
+      "diasAtras": 44,
+      "tema": null,
+      "peso": 159,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-60",
+      "diasAtras": 44,
+      "tema": "quando-chega",
+      "peso": 21,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-60",
+      "diasAtras": 43,
+      "tema": "comprovante-escola",
+      "peso": 4,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-61",
+      "diasAtras": 43,
+      "tema": null,
+      "peso": 43,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-60",
+      "diasAtras": 43,
+      "tema": "limite-diario",
+      "peso": 2,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-60",
+      "diasAtras": 42,
+      "tema": "app-lento-simular",
+      "peso": 2,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-62",
+      "diasAtras": 42,
+      "tema": null,
+      "peso": 29,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-61",
+      "diasAtras": 42,
+      "tema": "quando-chega",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-70",
+      "diasAtras": 41,
+      "tema": "comprovante-escola",
+      "peso": 5,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-75",
+      "diasAtras": 41,
+      "tema": null,
+      "peso": 153,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-71",
+      "diasAtras": 40,
+      "tema": "cadastro-beneficiario",
+      "peso": 5,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-71",
+      "diasAtras": 40,
+      "tema": "cotacao-muda",
+      "peso": 6,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-70",
+      "diasAtras": 40,
+      "tema": "quando-chega",
+      "peso": 22,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-70",
+      "diasAtras": 39,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-71",
+      "diasAtras": 39,
+      "tema": "comprovante-escola",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-73",
+      "diasAtras": 39,
+      "tema": null,
+      "peso": 68,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-74",
+      "diasAtras": 39,
+      "tema": null,
+      "peso": 119,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-18912",
+      "diasAtras": 38,
+      "tema": "cadastro-beneficiario",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Pede SWIFT, IBAN, endereço... desisti na metade e fui pelo site."
+    },
+    {
+      "id": "LK-cambio-limite-diario-71",
+      "diasAtras": 38,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-70",
+      "diasAtras": 37,
+      "tema": "app-lento-simular",
+      "peso": 3,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-71",
+      "diasAtras": 37,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-72",
+      "diasAtras": 37,
+      "tema": null,
+      "peso": 28,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-70",
+      "diasAtras": 37,
+      "tema": "taxas-no-final",
+      "peso": 14,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-70",
+      "diasAtras": 36,
+      "tema": "limite-diario",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-71",
+      "diasAtras": 35,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-70",
+      "diasAtras": 35,
+      "tema": "cadastro-beneficiario",
+      "peso": 9,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-70",
+      "diasAtras": 35,
+      "tema": "cotacao-muda",
+      "peso": 26,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-71",
+      "diasAtras": 35,
+      "tema": null,
+      "peso": 42,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-71",
+      "diasAtras": 35,
+      "tema": "quando-chega",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-71",
+      "diasAtras": 35,
+      "tema": "taxas-no-final",
+      "peso": 9,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-81",
+      "diasAtras": 34,
+      "tema": null,
+      "peso": 38,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-81",
+      "diasAtras": 34,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-81",
+      "diasAtras": 34,
+      "tema": "taxas-no-final",
+      "peso": 8,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-19204",
+      "diasAtras": 33,
+      "tema": "limite-diario",
+      "peso": 1,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física",
+      "texto": "Queria saber quanto ainda posso comprar hoje antes de começar."
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-80",
+      "diasAtras": 33,
+      "tema": "cotacao-muda",
+      "peso": 30,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-85",
+      "diasAtras": 33,
+      "tema": null,
+      "peso": 138,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-81",
+      "diasAtras": 32,
+      "tema": "cadastro-beneficiario",
+      "peso": 5,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-81",
+      "diasAtras": 32,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-82",
+      "diasAtras": 32,
+      "tema": null,
+      "peso": 25,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-80",
+      "diasAtras": 32,
+      "tema": "taxas-no-final",
+      "peso": 13,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-81",
+      "diasAtras": 31,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-81",
+      "diasAtras": 31,
+      "tema": "comprovante-escola",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-19533",
+      "diasAtras": 30,
+      "tema": "cadastro-beneficiario",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Não sei o que é IBAN e o app não explica."
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-80",
+      "diasAtras": 30,
+      "tema": "cadastro-beneficiario",
+      "peso": 9,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-80",
+      "diasAtras": 30,
+      "tema": "chat-nao-resolve",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-83",
+      "diasAtras": 30,
+      "tema": null,
+      "peso": 61,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-80",
+      "diasAtras": 30,
+      "tema": "quando-chega",
+      "peso": 21,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-80",
+      "diasAtras": 29,
+      "tema": "app-lento-simular",
+      "peso": 3,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-80",
+      "diasAtras": 29,
+      "tema": "comprovante-escola",
+      "peso": 4,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-80",
+      "diasAtras": 29,
+      "tema": "limite-diario",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-19650",
+      "diasAtras": 28,
+      "tema": "taxas-no-final",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "O IOF e a tarifa só aparecem na última tela. Tive que voltar e refazer a conta."
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-81",
+      "diasAtras": 28,
+      "tema": "cotacao-muda",
+      "peso": 7,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-84",
+      "diasAtras": 28,
+      "tema": null,
+      "peso": 107,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-81",
+      "diasAtras": 28,
+      "tema": "quando-chega",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-90",
+      "diasAtras": 27,
+      "tema": "cadastro-beneficiario",
+      "peso": 9,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-90",
+      "diasAtras": 27,
+      "tema": "comprovante-escola",
+      "peso": 4,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-94",
+      "diasAtras": 27,
+      "tema": null,
+      "peso": 122,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-90",
+      "diasAtras": 27,
+      "tema": "quando-chega",
+      "peso": 20,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-19877",
+      "diasAtras": 26,
+      "tema": "cotacao-muda",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Queria travar a taxa por alguns minutos enquanto preencho o resto."
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-91",
+      "diasAtras": 26,
+      "tema": "cotacao-muda",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-90",
+      "diasAtras": 26,
+      "tema": "taxas-no-final",
+      "peso": 12,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-90",
+      "diasAtras": 25,
+      "tema": "app-lento-simular",
+      "peso": 3,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-91",
+      "diasAtras": 25,
+      "tema": "cadastro-beneficiario",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-90",
+      "diasAtras": 25,
+      "tema": "chat-nao-resolve",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-91",
+      "diasAtras": 25,
+      "tema": "comprovante-escola",
+      "peso": 6,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-91",
+      "diasAtras": 25,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-20077",
+      "diasAtras": 24,
+      "tema": "taxas-no-final",
+      "peso": 1,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física",
+      "texto": "Seria bom ver o valor total que sai da minha conta já na simulação."
+    },
+    {
+      "id": "LK-cambio-geral-93",
+      "diasAtras": 24,
+      "tema": null,
+      "peso": 70,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-91",
+      "diasAtras": 24,
+      "tema": "taxas-no-final",
+      "peso": 8,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-91",
+      "diasAtras": 23,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-91",
+      "diasAtras": 23,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-90",
+      "diasAtras": 23,
+      "tema": "limite-diario",
+      "peso": 2,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-92",
+      "diasAtras": 22,
+      "tema": null,
+      "peso": 28,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-95",
+      "diasAtras": 22,
+      "tema": null,
+      "peso": 158,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-91",
+      "diasAtras": 22,
+      "tema": "quando-chega",
+      "peso": 5,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-90",
+      "diasAtras": 21,
+      "tema": "cotacao-muda",
+      "peso": 28,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-91",
+      "diasAtras": 21,
+      "tema": null,
+      "peso": 43,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-20514",
+      "diasAtras": 20,
+      "tema": "quando-chega",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Prazo “até 2 dias úteis” não ajuda. Quero ver onde o dinheiro está."
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-100",
+      "diasAtras": 20,
+      "tema": "cadastro-beneficiario",
+      "peso": 9,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-100",
+      "diasAtras": 20,
+      "tema": "comprovante-escola",
+      "peso": 4,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-101",
+      "diasAtras": 20,
+      "tema": "cotacao-muda",
+      "peso": 6,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-103",
+      "diasAtras": 20,
+      "tema": null,
+      "peso": 70,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-101",
+      "diasAtras": 20,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-101",
+      "diasAtras": 20,
+      "tema": "quando-chega",
+      "peso": 5,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-20388",
+      "diasAtras": 19,
+      "tema": "app-lento-simular",
+      "peso": 1,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Cada vez que mudo o valor a tela trava um pouco antes de mostrar a cotação."
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-101",
+      "diasAtras": 19,
+      "tema": "taxas-no-final",
+      "peso": 7,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-101",
+      "diasAtras": 18,
+      "tema": "cadastro-beneficiario",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-100",
+      "diasAtras": 18,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-101",
+      "diasAtras": 18,
+      "tema": "comprovante-escola",
+      "peso": 6,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-102",
+      "diasAtras": 18,
+      "tema": null,
+      "peso": 28,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-100",
+      "diasAtras": 18,
+      "tema": "limite-diario",
+      "peso": 2,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-100",
+      "diasAtras": 18,
+      "tema": "quando-chega",
+      "peso": 20,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-20931",
+      "diasAtras": 17,
+      "tema": "cotacao-muda",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Simulei a 5,42 e na hora de confirmar estava 5,49. Me senti enganado."
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-100",
+      "diasAtras": 17,
+      "tema": "app-lento-simular",
+      "peso": 3,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-105",
+      "diasAtras": 17,
+      "tema": null,
+      "peso": 157,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-20910",
+      "diasAtras": 16,
+      "tema": "chat-nao-resolve",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Perguntei da minha remessa no chat e ele me mandou ligar."
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-101",
+      "diasAtras": 16,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-101",
+      "diasAtras": 16,
+      "tema": null,
+      "peso": 43,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-101",
+      "diasAtras": 15,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-100",
+      "diasAtras": 15,
+      "tema": "cotacao-muda",
+      "peso": 28,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-104",
+      "diasAtras": 15,
+      "tema": null,
+      "peso": 122,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-21102",
+      "diasAtras": 14,
+      "tema": "quando-chega",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Mandei para minha filha em Lisboa e não sei se já chegou. Tive que pedir para ela olhar o banco dela."
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-100",
+      "diasAtras": 14,
+      "tema": "taxas-no-final",
+      "peso": 12,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-21220",
+      "diasAtras": 13,
+      "tema": "comprovante-escola",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Precisei do comprovante para a universidade e não achei em PDF."
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-111",
+      "diasAtras": 13,
+      "tema": "comprovante-escola",
+      "peso": 7,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-111",
+      "diasAtras": 13,
+      "tema": "quando-chega",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-114",
+      "diasAtras": 12,
+      "tema": null,
+      "peso": 130,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-21408",
+      "diasAtras": 11,
+      "tema": "cotacao-muda",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Não fica claro por quanto tempo a cotação vale. Demorei para achar os dados do beneficiário e perdi a taxa."
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-111",
+      "diasAtras": 11,
+      "tema": "app-lento-simular",
+      "peso": 4,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-111",
+      "diasAtras": 11,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-110",
+      "diasAtras": 11,
+      "tema": "comprovante-escola",
+      "peso": 5,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-111",
+      "diasAtras": 11,
+      "tema": "cotacao-muda",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-111",
+      "diasAtras": 11,
+      "tema": null,
+      "peso": 45,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-110",
+      "diasAtras": 11,
+      "tema": "limite-diario",
+      "peso": 2,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-111",
+      "diasAtras": 10,
+      "tema": "cadastro-beneficiario",
+      "peso": 6,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-112",
+      "diasAtras": 10,
+      "tema": null,
+      "peso": 30,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-115",
+      "diasAtras": 10,
+      "tema": null,
+      "peso": 166,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-110",
+      "diasAtras": 9,
+      "tema": "app-lento-simular",
+      "peso": 2,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-110",
+      "diasAtras": 9,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-110",
+      "diasAtras": 9,
+      "tema": "cotacao-muda",
+      "peso": 28,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-111",
+      "diasAtras": 9,
+      "tema": "limite-diario",
+      "peso": 3,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-111",
+      "diasAtras": 9,
+      "tema": "taxas-no-final",
+      "peso": 9,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-110",
+      "diasAtras": 8,
+      "tema": "cadastro-beneficiario",
+      "peso": 9,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-113",
+      "diasAtras": 8,
+      "tema": null,
+      "peso": 74,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-110",
+      "diasAtras": 8,
+      "tema": "quando-chega",
+      "peso": 23,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-110",
+      "diasAtras": 7,
+      "tema": "taxas-no-final",
+      "peso": 13,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-121",
+      "diasAtras": 6,
+      "tema": null,
+      "peso": 38,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-121",
+      "diasAtras": 6,
+      "tema": "limite-diario",
+      "peso": 2,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-121",
+      "diasAtras": 5,
+      "tema": "app-lento-simular",
+      "peso": 5,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-120",
+      "diasAtras": 5,
+      "tema": "cotacao-muda",
+      "peso": 32,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-124",
+      "diasAtras": 5,
+      "tema": null,
+      "peso": 110,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-120",
+      "diasAtras": 4,
+      "tema": "chat-nao-resolve",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-120",
+      "diasAtras": 4,
+      "tema": "comprovante-escola",
+      "peso": 5,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-limite-diario-120",
+      "diasAtras": 4,
+      "tema": "limite-diario",
+      "peso": 1,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-120",
+      "diasAtras": 4,
+      "tema": "taxas-no-final",
+      "peso": 14,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-120",
+      "diasAtras": 3,
+      "tema": "cadastro-beneficiario",
+      "peso": 9,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cotacao-muda-121",
+      "diasAtras": 3,
+      "tema": "cotacao-muda",
+      "peso": 7,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-chat-nao-resolve-121",
+      "diasAtras": 2,
+      "tema": "chat-nao-resolve",
+      "peso": 2,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-comprovante-escola-121",
+      "diasAtras": 2,
+      "tema": "comprovante-escola",
+      "peso": 8,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-123",
+      "diasAtras": 2,
+      "tema": null,
+      "peso": 63,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-121",
+      "diasAtras": 2,
+      "tema": "quando-chega",
+      "peso": 6,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-taxas-no-final-121",
+      "diasAtras": 2,
+      "tema": "taxas-no-final",
+      "peso": 9,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-cadastro-beneficiario-121",
+      "diasAtras": 1,
+      "tema": "cadastro-beneficiario",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-app-lento-simular-120",
+      "diasAtras": 0,
+      "tema": "app-lento-simular",
+      "peso": 3,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-122",
+      "diasAtras": 0,
+      "tema": null,
+      "peso": 26,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-geral-125",
+      "diasAtras": 0,
+      "tema": null,
+      "peso": 142,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-cambio-quando-chega-120",
+      "diasAtras": 0,
+      "tema": "quando-chega",
+      "peso": 23,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    }
+  ]
+}

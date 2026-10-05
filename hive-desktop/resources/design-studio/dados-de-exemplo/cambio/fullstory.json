@@ -1,0 +1,1032 @@
+{
+  "formato": "dados-de-exemplo/1",
+  "produto": "Câmbio",
+  "fonte": "fullstory",
+  "volume": 48300,
+  "categorias": [
+    {
+      "id": "status",
+      "nome": "Status e avisos",
+      "padrao": "O cliente descobre o que aconteceu com a remessa fora do app: no extrato, pelo beneficiário ou ligando.",
+      "sugestao": "Mostrar cada etapa do envio e avisar na hora em que algo dá errado, com o motivo e o que fazer."
+    },
+    {
+      "id": "cotacao",
+      "nome": "Cotação e taxas",
+      "padrao": "A taxa muda entre simular e confirmar, e o custo total só aparece no fim.",
+      "sugestao": "Travar a cotação por alguns minutos e mostrar o total debitado desde a simulação."
+    },
+    {
+      "id": "beneficiario",
+      "nome": "Cadastro do beneficiário",
+      "padrao": "SWIFT, IBAN e endereço numa tela só fazem o cliente desistir ou errar os dados.",
+      "sugestao": "Dividir o cadastro em passos curtos e validar o IBAN enquanto o cliente digita."
+    },
+    {
+      "id": "confirmacao",
+      "nome": "Confirmação e limites",
+      "padrao": "O botão de confirmar fica inativo sem dizer o que falta, e o limite só aparece tarde.",
+      "sugestao": "Dizer o que falta antes do toque e mostrar o limite já na simulação."
+    },
+    {
+      "id": "comprovante",
+      "nome": "Comprovantes",
+      "padrao": "Quem paga estudos ou aluguel fora precisa do comprovante e não acha onde baixar.",
+      "sugestao": "Deixar o comprovante em PDF a um toque, na própria tela de acompanhamento."
+    }
+  ],
+  "temas": [
+    {
+      "id": "rage-confirmar-remessa",
+      "titulo": "Rage click no botão Confirmar remessa",
+      "resumo": "O botão fica desabilitado até o aceite dos termos, sem dizer por quê. O cliente toca várias vezes seguidas.",
+      "tela": "Confirmar",
+      "categoria": "confirmacao",
+      "sinal": "Rage click",
+      "elemento": "Botão “Confirmar remessa”"
+    },
+    {
+      "id": "dead-selo-status",
+      "titulo": "Dead click no selo “Em processamento”",
+      "resumo": "Clientes tocam no selo de status esperando detalhes; nada acontece.",
+      "tela": "Acompanhar",
+      "categoria": "status",
+      "sinal": "Dead click",
+      "elemento": "Selo “Em processamento”"
+    },
+    {
+      "id": "abandono-iban",
+      "titulo": "Abandono no campo IBAN do beneficiário",
+      "resumo": "O formulário do beneficiário perde clientes no campo IBAN, que não tem ajuda nem máscara.",
+      "tela": "Beneficiário",
+      "categoria": "beneficiario",
+      "sinal": "Abandono de formulário",
+      "elemento": "Campo “IBAN”"
+    },
+    {
+      "id": "error-baixar-comprovante",
+      "titulo": "Error click em “Baixar comprovante”",
+      "resumo": "O download do comprovante falha com tempo esgotado em parte das tentativas.",
+      "tela": "Comprovante",
+      "categoria": "comprovante",
+      "sinal": "Error click",
+      "elemento": "Botão “Baixar comprovante”"
+    },
+    {
+      "id": "cursor-tabela-taxas",
+      "titulo": "Cursor agitado na tabela de taxas",
+      "resumo": "No internet banking, o cursor vai e volta sobre a tabela de taxas antes da confirmação.",
+      "tela": "Revisar",
+      "categoria": "cotacao",
+      "sinal": "Cursor agitado",
+      "elemento": "Tabela “Taxas e impostos”"
+    },
+    {
+      "id": "dead-bandeira-moeda",
+      "titulo": "Dead click na bandeira da moeda",
+      "resumo": "A bandeira ao lado do valor parece trocar a moeda, mas não reage ao toque.",
+      "tela": "Simular",
+      "categoria": "cotacao",
+      "sinal": "Dead click",
+      "elemento": "Ícone da bandeira"
+    },
+    {
+      "id": "rage-voltar-revisar",
+      "titulo": "Rage click em Voltar na revisão",
+      "resumo": "Voltar da revisão perde os dados do beneficiário, e o cliente toca de novo esperando outra coisa.",
+      "tela": "Revisar",
+      "categoria": "confirmacao",
+      "sinal": "Rage click",
+      "elemento": "Botão “Voltar”"
+    },
+    {
+      "id": "abandono-valor-simulacao",
+      "titulo": "Abandono no campo de valor da simulação",
+      "resumo": "Clientes digitam o valor em reais esperando ver em dólar e desistem.",
+      "tela": "Simular",
+      "categoria": "cotacao",
+      "sinal": "Abandono de formulário",
+      "elemento": "Campo “Valor em reais”"
+    }
+  ],
+  "registros": [
+    {
+      "id": "FS-cambio-dead-selo-status-0",
+      "diasAtras": 89,
+      "tema": "dead-selo-status",
+      "peso": 91,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-0",
+      "diasAtras": 88,
+      "tema": "abandono-valor-simulacao",
+      "peso": 10,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-0",
+      "diasAtras": 88,
+      "tema": "cursor-tabela-taxas",
+      "peso": 23,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-0",
+      "diasAtras": 88,
+      "tema": "rage-voltar-revisar",
+      "peso": 13,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-geral-0",
+      "diasAtras": 87,
+      "tema": null,
+      "peso": 2953,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-0",
+      "diasAtras": 86,
+      "tema": "abandono-iban",
+      "peso": 61,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-0",
+      "diasAtras": 86,
+      "tema": "error-baixar-comprovante",
+      "peso": 41,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-0",
+      "diasAtras": 84,
+      "tema": "dead-bandeira-moeda",
+      "peso": 17,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-0",
+      "diasAtras": 84,
+      "tema": "rage-confirmar-remessa",
+      "peso": 135,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-1",
+      "diasAtras": 83,
+      "tema": "abandono-valor-simulacao",
+      "peso": 10,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-1",
+      "diasAtras": 83,
+      "tema": "cursor-tabela-taxas",
+      "peso": 21,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-geral-1",
+      "diasAtras": 82,
+      "tema": null,
+      "peso": 3351,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-1",
+      "diasAtras": 80,
+      "tema": "dead-selo-status",
+      "peso": 93,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-1",
+      "diasAtras": 79,
+      "tema": "dead-bandeira-moeda",
+      "peso": 17,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-1",
+      "diasAtras": 79,
+      "tema": "rage-confirmar-remessa",
+      "peso": 141,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-1",
+      "diasAtras": 79,
+      "tema": "rage-voltar-revisar",
+      "peso": 11,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-1",
+      "diasAtras": 77,
+      "tema": "abandono-iban",
+      "peso": 65,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-1",
+      "diasAtras": 77,
+      "tema": "error-baixar-comprovante",
+      "peso": 37,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-2",
+      "diasAtras": 76,
+      "tema": "error-baixar-comprovante",
+      "peso": 43,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-2",
+      "diasAtras": 75,
+      "tema": "abandono-iban",
+      "peso": 68,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-2",
+      "diasAtras": 74,
+      "tema": "dead-bandeira-moeda",
+      "peso": 16,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-2",
+      "diasAtras": 74,
+      "tema": "rage-confirmar-remessa",
+      "peso": 150,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-2",
+      "diasAtras": 72,
+      "tema": "dead-selo-status",
+      "peso": 92,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-2",
+      "diasAtras": 71,
+      "tema": "abandono-valor-simulacao",
+      "peso": 11,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-2",
+      "diasAtras": 71,
+      "tema": "cursor-tabela-taxas",
+      "peso": 22,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-2",
+      "diasAtras": 71,
+      "tema": "rage-voltar-revisar",
+      "peso": 12,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-geral-2",
+      "diasAtras": 70,
+      "tema": null,
+      "peso": 3445,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-3",
+      "diasAtras": 69,
+      "tema": "dead-bandeira-moeda",
+      "peso": 14,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-3",
+      "diasAtras": 69,
+      "tema": "rage-confirmar-remessa",
+      "peso": 137,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-3",
+      "diasAtras": 69,
+      "tema": "rage-voltar-revisar",
+      "peso": 12,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-3",
+      "diasAtras": 67,
+      "tema": "error-baixar-comprovante",
+      "peso": 43,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-3",
+      "diasAtras": 66,
+      "tema": "abandono-iban",
+      "peso": 74,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-3",
+      "diasAtras": 66,
+      "tema": "abandono-valor-simulacao",
+      "peso": 9,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-3",
+      "diasAtras": 66,
+      "tema": "cursor-tabela-taxas",
+      "peso": 23,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-geral-3",
+      "diasAtras": 65,
+      "tema": null,
+      "peso": 3404,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-3",
+      "diasAtras": 63,
+      "tema": "dead-selo-status",
+      "peso": 83,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-4",
+      "diasAtras": 62,
+      "tema": "dead-bandeira-moeda",
+      "peso": 17,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-4",
+      "diasAtras": 61,
+      "tema": "rage-voltar-revisar",
+      "peso": 13,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-4",
+      "diasAtras": 60,
+      "tema": "dead-selo-status",
+      "peso": 97,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-geral-4",
+      "diasAtras": 60,
+      "tema": null,
+      "peso": 3125,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-4",
+      "diasAtras": 59,
+      "tema": "abandono-valor-simulacao",
+      "peso": 9,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-4",
+      "diasAtras": 59,
+      "tema": "cursor-tabela-taxas",
+      "peso": 25,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-4",
+      "diasAtras": 59,
+      "tema": "error-baixar-comprovante",
+      "peso": 45,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-4",
+      "diasAtras": 57,
+      "tema": "abandono-iban",
+      "peso": 70,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-4",
+      "diasAtras": 57,
+      "tema": "rage-confirmar-remessa",
+      "peso": 142,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-5",
+      "diasAtras": 55,
+      "tema": "abandono-iban",
+      "peso": 64,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-geral-5",
+      "diasAtras": 55,
+      "tema": null,
+      "peso": 3026,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-5",
+      "diasAtras": 54,
+      "tema": "abandono-valor-simulacao",
+      "peso": 10,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-5",
+      "diasAtras": 54,
+      "tema": "cursor-tabela-taxas",
+      "peso": 21,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-5",
+      "diasAtras": 52,
+      "tema": "rage-confirmar-remessa",
+      "peso": 161,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-5",
+      "diasAtras": 52,
+      "tema": "rage-voltar-revisar",
+      "peso": 12,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-5",
+      "diasAtras": 51,
+      "tema": "dead-selo-status",
+      "peso": 100,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-5",
+      "diasAtras": 50,
+      "tema": "dead-bandeira-moeda",
+      "peso": 17,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-5",
+      "diasAtras": 50,
+      "tema": "error-baixar-comprovante",
+      "peso": 39,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-6",
+      "diasAtras": 47,
+      "tema": "rage-confirmar-remessa",
+      "peso": 172,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-6",
+      "diasAtras": 46,
+      "tema": "abandono-iban",
+      "peso": 68,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-6",
+      "diasAtras": 45,
+      "tema": "dead-bandeira-moeda",
+      "peso": 17,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-6",
+      "diasAtras": 44,
+      "tema": "rage-voltar-revisar",
+      "peso": 11,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-6",
+      "diasAtras": 43,
+      "tema": "dead-selo-status",
+      "peso": 110,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-geral-6",
+      "diasAtras": 43,
+      "tema": null,
+      "peso": 3398,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-6",
+      "diasAtras": 42,
+      "tema": "abandono-valor-simulacao",
+      "peso": 11,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-6",
+      "diasAtras": 42,
+      "tema": "cursor-tabela-taxas",
+      "peso": 22,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-6",
+      "diasAtras": 42,
+      "tema": "error-baixar-comprovante",
+      "peso": 40,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-7",
+      "diasAtras": 41,
+      "tema": "dead-selo-status",
+      "peso": 96,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-7",
+      "diasAtras": 40,
+      "tema": "dead-bandeira-moeda",
+      "peso": 15,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-7",
+      "diasAtras": 40,
+      "tema": "error-baixar-comprovante",
+      "peso": 42,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-geral-7",
+      "diasAtras": 38,
+      "tema": null,
+      "peso": 3404,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-7",
+      "diasAtras": 37,
+      "tema": "abandono-iban",
+      "peso": 71,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-7",
+      "diasAtras": 37,
+      "tema": "abandono-valor-simulacao",
+      "peso": 11,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-7",
+      "diasAtras": 37,
+      "tema": "cursor-tabela-taxas",
+      "peso": 21,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-7",
+      "diasAtras": 35,
+      "tema": "rage-confirmar-remessa",
+      "peso": 177,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-7",
+      "diasAtras": 35,
+      "tema": "rage-voltar-revisar",
+      "peso": 12,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-8",
+      "diasAtras": 34,
+      "tema": "cursor-tabela-taxas",
+      "peso": 24,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-8",
+      "diasAtras": 34,
+      "tema": "rage-voltar-revisar",
+      "peso": 12,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-8",
+      "diasAtras": 32,
+      "tema": "abandono-iban",
+      "peso": 78,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-8",
+      "diasAtras": 30,
+      "tema": "abandono-valor-simulacao",
+      "peso": 9,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-8",
+      "diasAtras": 30,
+      "tema": "dead-bandeira-moeda",
+      "peso": 16,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-8",
+      "diasAtras": 30,
+      "tema": "rage-confirmar-remessa",
+      "peso": 160,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-geral-8",
+      "diasAtras": 29,
+      "tema": null,
+      "peso": 3456,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-8",
+      "diasAtras": 28,
+      "tema": "dead-selo-status",
+      "peso": 102,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-8",
+      "diasAtras": 28,
+      "tema": "error-baixar-comprovante",
+      "peso": 45,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-9",
+      "diasAtras": 26,
+      "tema": "dead-selo-status",
+      "peso": 104,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-9",
+      "diasAtras": 26,
+      "tema": "error-baixar-comprovante",
+      "peso": 44,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-9",
+      "diasAtras": 25,
+      "tema": "abandono-valor-simulacao",
+      "peso": 10,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-9",
+      "diasAtras": 25,
+      "tema": "dead-bandeira-moeda",
+      "peso": 16,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-9",
+      "diasAtras": 25,
+      "tema": "rage-confirmar-remessa",
+      "peso": 177,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-9",
+      "diasAtras": 25,
+      "tema": "rage-voltar-revisar",
+      "peso": 13,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-geral-9",
+      "diasAtras": 24,
+      "tema": null,
+      "peso": 2953,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-9",
+      "diasAtras": 23,
+      "tema": "abandono-iban",
+      "peso": 69,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-9",
+      "diasAtras": 22,
+      "tema": "cursor-tabela-taxas",
+      "peso": 23,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-85702",
+      "diasAtras": 20,
+      "tema": "abandono-valor-simulacao",
+      "peso": 1,
+      "dispositivo": "iOS · app 8.41",
+      "momento": "00:52",
+      "detalhe": "Troca o valor quatro vezes e fecha o app."
+    },
+    {
+      "id": "FS-cambio-abandono-iban-10",
+      "diasAtras": 19,
+      "tema": "abandono-iban",
+      "peso": 70,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-10",
+      "diasAtras": 19,
+      "tema": "error-baixar-comprovante",
+      "peso": 39,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-85931",
+      "diasAtras": 18,
+      "tema": "cursor-tabela-taxas",
+      "peso": 1,
+      "dispositivo": "Internet banking · Edge",
+      "momento": "01:26",
+      "detalhe": "14 segundos de movimento sobre a tabela, sem clique."
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-10",
+      "diasAtras": 18,
+      "tema": "cursor-tabela-taxas",
+      "peso": 22,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-10",
+      "diasAtras": 18,
+      "tema": "dead-bandeira-moeda",
+      "peso": 18,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-10",
+      "diasAtras": 18,
+      "tema": "dead-selo-status",
+      "peso": 119,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-10",
+      "diasAtras": 18,
+      "tema": "rage-voltar-revisar",
+      "peso": 11,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-86104",
+      "diasAtras": 15,
+      "tema": "rage-confirmar-remessa",
+      "peso": 1,
+      "dispositivo": "Android · app 8.41",
+      "momento": "00:39",
+      "detalhe": "11 toques e abandono da sessão."
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-10",
+      "diasAtras": 15,
+      "tema": "rage-confirmar-remessa",
+      "peso": 184,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-10",
+      "diasAtras": 14,
+      "tema": "abandono-valor-simulacao",
+      "peso": 10,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-geral-10",
+      "diasAtras": 14,
+      "tema": null,
+      "peso": 3231,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-86377",
+      "diasAtras": 13,
+      "tema": "rage-voltar-revisar",
+      "peso": 1,
+      "dispositivo": "Android · app 8.41",
+      "momento": "01:40",
+      "detalhe": "5 toques em Voltar; preenche o beneficiário de novo."
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-11",
+      "diasAtras": 13,
+      "tema": "dead-selo-status",
+      "peso": 116,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-11",
+      "diasAtras": 13,
+      "tema": "rage-confirmar-remessa",
+      "peso": 209,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-11",
+      "diasAtras": 13,
+      "tema": "rage-voltar-revisar",
+      "peso": 11,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-86650",
+      "diasAtras": 12,
+      "tema": "abandono-iban",
+      "peso": 1,
+      "dispositivo": "Android · app 8.41",
+      "momento": "02:04",
+      "detalhe": "Digita, apaga duas vezes e sai do app."
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-11",
+      "diasAtras": 12,
+      "tema": "abandono-valor-simulacao",
+      "peso": 11,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-geral-11",
+      "diasAtras": 12,
+      "tema": null,
+      "peso": 3244,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-87102",
+      "diasAtras": 10,
+      "tema": "error-baixar-comprovante",
+      "peso": 1,
+      "dispositivo": "Internet banking · Chrome",
+      "momento": "00:33",
+      "detalhe": "Erro de tempo esgotado; tenta 3 vezes."
+    },
+    {
+      "id": "FS-87431",
+      "diasAtras": 9,
+      "tema": "dead-selo-status",
+      "peso": 1,
+      "dispositivo": "Android · app 8.42",
+      "momento": "00:09",
+      "detalhe": "2 toques; liga para a central em seguida."
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-11",
+      "diasAtras": 9,
+      "tema": "cursor-tabela-taxas",
+      "peso": 20,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-11",
+      "diasAtras": 9,
+      "tema": "dead-bandeira-moeda",
+      "peso": 17,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-87240",
+      "diasAtras": 8,
+      "tema": "dead-bandeira-moeda",
+      "peso": 1,
+      "dispositivo": "iOS · app 8.42",
+      "momento": "00:15",
+      "detalhe": "3 toques na bandeira; abre o seletor de moeda pelo menu."
+    },
+    {
+      "id": "FS-87760",
+      "diasAtras": 7,
+      "tema": "rage-confirmar-remessa",
+      "peso": 1,
+      "dispositivo": "iOS · app 8.42",
+      "momento": "01:12",
+      "detalhe": "6 toques; rola a tela até achar a caixa de aceite."
+    },
+    {
+      "id": "FS-cambio-abandono-iban-11",
+      "diasAtras": 7,
+      "tema": "abandono-iban",
+      "peso": 67,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-11",
+      "diasAtras": 7,
+      "tema": "error-baixar-comprovante",
+      "peso": 41,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-88022",
+      "diasAtras": 6,
+      "tema": "dead-selo-status",
+      "peso": 1,
+      "dispositivo": "iOS · app 8.42",
+      "momento": "00:18",
+      "detalhe": "4 toques no selo, depois abre o extrato."
+    },
+    {
+      "id": "FS-88213",
+      "diasAtras": 5,
+      "tema": "rage-confirmar-remessa",
+      "peso": 1,
+      "dispositivo": "Android · app 8.42",
+      "momento": "00:47",
+      "detalhe": "9 toques em 3 segundos no botão desabilitado; depois volta para Revisar."
+    },
+    {
+      "id": "FS-cambio-rage-confirmar-remessa-12",
+      "diasAtras": 5,
+      "tema": "rage-confirmar-remessa",
+      "peso": 192,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-valor-simulacao-12",
+      "diasAtras": 4,
+      "tema": "abandono-valor-simulacao",
+      "peso": 11,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-geral-12",
+      "diasAtras": 4,
+      "tema": null,
+      "peso": 3614,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-abandono-iban-12",
+      "diasAtras": 2,
+      "tema": "abandono-iban",
+      "peso": 80,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-cambio-cursor-tabela-taxas-12",
+      "diasAtras": 1,
+      "tema": "cursor-tabela-taxas",
+      "peso": 21,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-bandeira-moeda-12",
+      "diasAtras": 1,
+      "tema": "dead-bandeira-moeda",
+      "peso": 14,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-cambio-error-baixar-comprovante-12",
+      "diasAtras": 1,
+      "tema": "error-baixar-comprovante",
+      "peso": 44,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-dead-selo-status-12",
+      "diasAtras": 0,
+      "tema": "dead-selo-status",
+      "peso": 113,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-cambio-rage-voltar-revisar-12",
+      "diasAtras": 0,
+      "tema": "rage-voltar-revisar",
+      "peso": 10,
+      "dispositivo": "iOS · app 8.42"
+    }
+  ]
+}

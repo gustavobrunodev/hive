@@ -1,0 +1,1008 @@
+{
+  "formato": "dados-de-exemplo/1",
+  "produto": "Extrato",
+  "fonte": "fullstory",
+  "volume": 212400,
+  "categorias": [
+    {
+      "id": "historico",
+      "nome": "Período e histórico",
+      "padrao": "O limite de 90 dias leva o cliente a ligar para pedir extratos e comprovantes antigos.",
+      "sugestao": "Liberar a escolha de período até 5 anos, com atalhos para mês e ano."
+    },
+    {
+      "id": "busca",
+      "nome": "Busca e identificação",
+      "padrao": "O cliente não reconhece o lançamento, tenta buscar, não acha e liga.",
+      "sugestao": "Buscar por valor e por nome da loja, e mostrar o nome comercial no lançamento."
+    },
+    {
+      "id": "lista",
+      "nome": "Lista e saldos",
+      "padrao": "Saldos parecidos e lançamentos repetidos confundem quem confere a conta.",
+      "sugestao": "Separar saldo do dia e saldo disponível, e explicar lançamentos repetidos."
+    },
+    {
+      "id": "exportar",
+      "nome": "Exportação e documentos",
+      "padrao": "Exportar é difícil de achar e falha justamente em períodos longos, como o do imposto de renda.",
+      "sugestao": "Pôr o exportar no topo do extrato e gerar o informe anual pronto."
+    }
+  ],
+  "temas": [
+    {
+      "id": "dead-rotulo-90-dias",
+      "titulo": "Dead click no rótulo “Últimos 90 dias”",
+      "resumo": "O rótulo parece um filtro, mas não é tocável. Clientes tocam esperando trocar o período.",
+      "tela": "Período",
+      "categoria": "historico",
+      "sinal": "Dead click",
+      "elemento": "Rótulo “Últimos 90 dias”"
+    },
+    {
+      "id": "rage-carregar-mais",
+      "titulo": "Rage click em “Carregar mais”",
+      "resumo": "O fim da lista demora a carregar e o cliente toca repetidamente.",
+      "tela": "Extrato",
+      "categoria": "lista",
+      "sinal": "Rage click",
+      "elemento": "Botão “Carregar mais”"
+    },
+    {
+      "id": "error-exportar-pdf",
+      "titulo": "Error click em “Exportar PDF”",
+      "resumo": "A exportação falha para períodos com muitos lançamentos.",
+      "tela": "Exportar",
+      "categoria": "exportar",
+      "sinal": "Error click",
+      "elemento": "Botão “Exportar PDF”"
+    },
+    {
+      "id": "abandono-busca",
+      "titulo": "Abandono da busca depois de duas tentativas",
+      "resumo": "Clientes desistem da busca quando a primeira e a segunda tentativa não trazem nada.",
+      "tela": "Busca",
+      "categoria": "busca",
+      "sinal": "Abandono de formulário",
+      "elemento": "Campo de busca"
+    },
+    {
+      "id": "cursor-detalhe",
+      "titulo": "Cursor agitado no detalhe do lançamento",
+      "resumo": "No internet banking, o cursor percorre o detalhe procurando o nome da loja.",
+      "tela": "Detalhe",
+      "categoria": "busca",
+      "sinal": "Cursor agitado",
+      "elemento": "Bloco “Estabelecimento”"
+    },
+    {
+      "id": "dead-icone-categoria",
+      "titulo": "Dead click no ícone de categoria do lançamento",
+      "resumo": "O ícone colorido ao lado do lançamento parece abrir a categoria, mas não faz nada.",
+      "tela": "Extrato",
+      "categoria": "lista",
+      "sinal": "Dead click",
+      "elemento": "Ícone de categoria"
+    },
+    {
+      "id": "rage-filtro-data",
+      "titulo": "Rage click no filtro de data",
+      "resumo": "O campo de data inicial recusa datas além de 90 dias sem explicar.",
+      "tela": "Período",
+      "categoria": "historico",
+      "sinal": "Rage click",
+      "elemento": "Campo “Data inicial”"
+    },
+    {
+      "id": "abandono-formato-exportar",
+      "titulo": "Abandono na escolha do formato de exportação",
+      "resumo": "Três formatos sem explicação fazem o cliente desistir de exportar.",
+      "tela": "Exportar",
+      "categoria": "exportar",
+      "sinal": "Abandono de formulário",
+      "elemento": "Seletor “Formato”"
+    }
+  ],
+  "registros": [
+    {
+      "id": "FS-extrato-abandono-busca-0",
+      "diasAtras": 89,
+      "tema": "abandono-busca",
+      "peso": 77,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-0",
+      "diasAtras": 89,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 518,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-0",
+      "diasAtras": 88,
+      "tema": "dead-icone-categoria",
+      "peso": 51,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-0",
+      "diasAtras": 88,
+      "tema": "error-exportar-pdf",
+      "peso": 100,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-0",
+      "diasAtras": 88,
+      "tema": "rage-filtro-data",
+      "peso": 37,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-0",
+      "diasAtras": 87,
+      "tema": "cursor-detalhe",
+      "peso": 32,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-geral-0",
+      "diasAtras": 87,
+      "tema": null,
+      "peso": 16644,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-0",
+      "diasAtras": 86,
+      "tema": "abandono-formato-exportar",
+      "peso": 21,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-0",
+      "diasAtras": 84,
+      "tema": "rage-carregar-mais",
+      "peso": 279,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-1",
+      "diasAtras": 82,
+      "tema": "cursor-detalhe",
+      "peso": 32,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-geral-1",
+      "diasAtras": 82,
+      "tema": null,
+      "peso": 14807,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-busca-1",
+      "diasAtras": 81,
+      "tema": "abandono-busca",
+      "peso": 74,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-1",
+      "diasAtras": 79,
+      "tema": "dead-icone-categoria",
+      "peso": 51,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-1",
+      "diasAtras": 79,
+      "tema": "error-exportar-pdf",
+      "peso": 90,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-1",
+      "diasAtras": 79,
+      "tema": "rage-carregar-mais",
+      "peso": 304,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-1",
+      "diasAtras": 79,
+      "tema": "rage-filtro-data",
+      "peso": 34,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-1",
+      "diasAtras": 78,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 562,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-1",
+      "diasAtras": 77,
+      "tema": "abandono-formato-exportar",
+      "peso": 20,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-2",
+      "diasAtras": 76,
+      "tema": "abandono-formato-exportar",
+      "peso": 23,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-2",
+      "diasAtras": 76,
+      "tema": "cursor-detalhe",
+      "peso": 31,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-geral-2",
+      "diasAtras": 76,
+      "tema": null,
+      "peso": 14415,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-abandono-busca-2",
+      "diasAtras": 73,
+      "tema": "abandono-busca",
+      "peso": 67,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-2",
+      "diasAtras": 73,
+      "tema": "rage-carregar-mais",
+      "peso": 274,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-2",
+      "diasAtras": 72,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 603,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-2",
+      "diasAtras": 71,
+      "tema": "dead-icone-categoria",
+      "peso": 49,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-2",
+      "diasAtras": 71,
+      "tema": "rage-filtro-data",
+      "peso": 40,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-2",
+      "diasAtras": 70,
+      "tema": "error-exportar-pdf",
+      "peso": 87,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-3",
+      "diasAtras": 69,
+      "tema": "dead-icone-categoria",
+      "peso": 44,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-3",
+      "diasAtras": 69,
+      "tema": "rage-filtro-data",
+      "peso": 41,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-3",
+      "diasAtras": 68,
+      "tema": "error-exportar-pdf",
+      "peso": 87,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-3",
+      "diasAtras": 68,
+      "tema": "rage-carregar-mais",
+      "peso": 267,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-3",
+      "diasAtras": 67,
+      "tema": "abandono-formato-exportar",
+      "peso": 23,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-3",
+      "diasAtras": 67,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 660,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-abandono-busca-3",
+      "diasAtras": 64,
+      "tema": "abandono-busca",
+      "peso": 72,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-3",
+      "diasAtras": 64,
+      "tema": "cursor-detalhe",
+      "peso": 28,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-geral-3",
+      "diasAtras": 64,
+      "tema": null,
+      "peso": 14274,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-abandono-busca-4",
+      "diasAtras": 61,
+      "tema": "abandono-busca",
+      "peso": 75,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-4",
+      "diasAtras": 61,
+      "tema": "dead-icone-categoria",
+      "peso": 49,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-4",
+      "diasAtras": 61,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 637,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-4",
+      "diasAtras": 61,
+      "tema": "rage-filtro-data",
+      "peso": 40,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-geral-4",
+      "diasAtras": 60,
+      "tema": null,
+      "peso": 15737,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-4",
+      "diasAtras": 59,
+      "tema": "error-exportar-pdf",
+      "peso": 96,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-4",
+      "diasAtras": 58,
+      "tema": "cursor-detalhe",
+      "peso": 31,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-4",
+      "diasAtras": 57,
+      "tema": "abandono-formato-exportar",
+      "peso": 23,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-4",
+      "diasAtras": 57,
+      "tema": "rage-carregar-mais",
+      "peso": 284,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-5",
+      "diasAtras": 55,
+      "tema": "abandono-formato-exportar",
+      "peso": 20,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-geral-5",
+      "diasAtras": 55,
+      "tema": null,
+      "peso": 16203,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-5",
+      "diasAtras": 53,
+      "tema": "cursor-detalhe",
+      "peso": 31,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-busca-5",
+      "diasAtras": 52,
+      "tema": "abandono-busca",
+      "peso": 83,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-5",
+      "diasAtras": 52,
+      "tema": "dead-icone-categoria",
+      "peso": 50,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-5",
+      "diasAtras": 52,
+      "tema": "rage-carregar-mais",
+      "peso": 307,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-5",
+      "diasAtras": 52,
+      "tema": "rage-filtro-data",
+      "peso": 37,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-5",
+      "diasAtras": 50,
+      "tema": "error-exportar-pdf",
+      "peso": 100,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-5",
+      "diasAtras": 49,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 588,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-6",
+      "diasAtras": 48,
+      "tema": "error-exportar-pdf",
+      "peso": 91,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-6",
+      "diasAtras": 47,
+      "tema": "abandono-formato-exportar",
+      "peso": 22,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-6",
+      "diasAtras": 47,
+      "tema": "cursor-detalhe",
+      "peso": 34,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-6",
+      "diasAtras": 46,
+      "tema": "rage-carregar-mais",
+      "peso": 321,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-busca-6",
+      "diasAtras": 44,
+      "tema": "abandono-busca",
+      "peso": 72,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-6",
+      "diasAtras": 44,
+      "tema": "dead-icone-categoria",
+      "peso": 54,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-6",
+      "diasAtras": 44,
+      "tema": "rage-filtro-data",
+      "peso": 37,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-6",
+      "diasAtras": 43,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 633,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-geral-6",
+      "diasAtras": 42,
+      "tema": null,
+      "peso": 14732,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-7",
+      "diasAtras": 41,
+      "tema": "rage-carregar-mais",
+      "peso": 286,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-7",
+      "diasAtras": 39,
+      "tema": "error-exportar-pdf",
+      "peso": 89,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-7",
+      "diasAtras": 38,
+      "tema": "abandono-formato-exportar",
+      "peso": 22,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-7",
+      "diasAtras": 38,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 667,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-geral-7",
+      "diasAtras": 37,
+      "tema": null,
+      "peso": 14436,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-abandono-busca-7",
+      "diasAtras": 35,
+      "tema": "abandono-busca",
+      "peso": 74,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-7",
+      "diasAtras": 35,
+      "tema": "cursor-detalhe",
+      "peso": 29,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-7",
+      "diasAtras": 35,
+      "tema": "dead-icone-categoria",
+      "peso": 46,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-7",
+      "diasAtras": 35,
+      "tema": "rage-filtro-data",
+      "peso": 43,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-8",
+      "diasAtras": 34,
+      "tema": "dead-icone-categoria",
+      "peso": 47,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-8",
+      "diasAtras": 34,
+      "tema": "rage-filtro-data",
+      "peso": 42,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-8",
+      "diasAtras": 33,
+      "tema": "cursor-detalhe",
+      "peso": 30,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-geral-8",
+      "diasAtras": 33,
+      "tema": null,
+      "peso": 14147,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-busca-8",
+      "diasAtras": 32,
+      "tema": "abandono-busca",
+      "peso": 71,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-8",
+      "diasAtras": 32,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 743,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-8",
+      "diasAtras": 30,
+      "tema": "error-exportar-pdf",
+      "peso": 88,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-8",
+      "diasAtras": 30,
+      "tema": "rage-carregar-mais",
+      "peso": 296,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-8",
+      "diasAtras": 28,
+      "tema": "abandono-formato-exportar",
+      "peso": 25,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-9",
+      "diasAtras": 27,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 664,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-9",
+      "diasAtras": 26,
+      "tema": "abandono-formato-exportar",
+      "peso": 22,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-9",
+      "diasAtras": 25,
+      "tema": "dead-icone-categoria",
+      "peso": 47,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-9",
+      "diasAtras": 25,
+      "tema": "rage-carregar-mais",
+      "peso": 296,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-9",
+      "diasAtras": 25,
+      "tema": "rage-filtro-data",
+      "peso": 42,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-busca-9",
+      "diasAtras": 23,
+      "tema": "abandono-busca",
+      "peso": 84,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-9",
+      "diasAtras": 21,
+      "tema": "cursor-detalhe",
+      "peso": 29,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-9",
+      "diasAtras": 21,
+      "tema": "error-exportar-pdf",
+      "peso": 103,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-geral-9",
+      "diasAtras": 21,
+      "tema": null,
+      "peso": 16442,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-10",
+      "diasAtras": 20,
+      "tema": "abandono-formato-exportar",
+      "peso": 21,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-geral-10",
+      "diasAtras": 20,
+      "tema": null,
+      "peso": 15379,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-10",
+      "diasAtras": 20,
+      "tema": "rage-carregar-mais",
+      "peso": 345,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-10",
+      "diasAtras": 20,
+      "tema": "rage-filtro-data",
+      "peso": 37,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-89510",
+      "diasAtras": 19,
+      "tema": "cursor-detalhe",
+      "peso": 1,
+      "dispositivo": "Internet banking · Edge",
+      "momento": "00:58",
+      "detalhe": "9 segundos sobre o bloco, sem clique."
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-10",
+      "diasAtras": 19,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 684,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-10",
+      "diasAtras": 19,
+      "tema": "error-exportar-pdf",
+      "peso": 96,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-89770",
+      "diasAtras": 17,
+      "tema": "abandono-formato-exportar",
+      "peso": 1,
+      "dispositivo": "Internet banking · Edge",
+      "momento": "00:41",
+      "detalhe": "Abre o seletor, alterna entre OFX e CSV, e fecha."
+    },
+    {
+      "id": "FS-89904",
+      "diasAtras": 16,
+      "tema": "abandono-busca",
+      "peso": 1,
+      "dispositivo": "iOS · app 8.41",
+      "momento": "00:37",
+      "detalhe": "Busca “mercado”, depois “super”, e fecha."
+    },
+    {
+      "id": "FS-extrato-abandono-busca-10",
+      "diasAtras": 16,
+      "tema": "abandono-busca",
+      "peso": 80,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-10",
+      "diasAtras": 16,
+      "tema": "cursor-detalhe",
+      "peso": 33,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-10",
+      "diasAtras": 16,
+      "tema": "dead-icone-categoria",
+      "peso": 54,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-90231",
+      "diasAtras": 13,
+      "tema": "error-exportar-pdf",
+      "peso": 1,
+      "dispositivo": "Internet banking · Chrome",
+      "momento": "00:44",
+      "detalhe": "Mensagem de erro genérica; tenta de novo."
+    },
+    {
+      "id": "FS-90512",
+      "diasAtras": 11,
+      "tema": "dead-icone-categoria",
+      "peso": 1,
+      "dispositivo": "iOS · app 8.42",
+      "momento": "00:24",
+      "detalhe": "2 toques no ícone; abre o detalhe pelo valor."
+    },
+    {
+      "id": "FS-extrato-abandono-busca-11",
+      "diasAtras": 11,
+      "tema": "abandono-busca",
+      "peso": 78,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-11",
+      "diasAtras": 11,
+      "tema": "dead-icone-categoria",
+      "peso": 51,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-geral-11",
+      "diasAtras": 11,
+      "tema": null,
+      "peso": 15371,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-11",
+      "diasAtras": 11,
+      "tema": "rage-carregar-mais",
+      "peso": 320,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-90633",
+      "diasAtras": 10,
+      "tema": "rage-filtro-data",
+      "peso": 1,
+      "dispositivo": "Internet banking · Chrome",
+      "momento": "01:03",
+      "detalhe": "6 cliques no campo; a data volta para 90 dias atrás."
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-11",
+      "diasAtras": 10,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 666,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-90877",
+      "diasAtras": 9,
+      "tema": "rage-carregar-mais",
+      "peso": 1,
+      "dispositivo": "Android · app 8.42",
+      "momento": "00:52",
+      "detalhe": "7 toques em 4 segundos."
+    },
+    {
+      "id": "FS-91022",
+      "diasAtras": 8,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 1,
+      "dispositivo": "iOS · app 8.42",
+      "momento": "00:11",
+      "detalhe": "2 toques; abre a busca e digita “abril”."
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-11",
+      "diasAtras": 8,
+      "tema": "abandono-formato-exportar",
+      "peso": 21,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-11",
+      "diasAtras": 8,
+      "tema": "rage-filtro-data",
+      "peso": 42,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-11",
+      "diasAtras": 7,
+      "tema": "cursor-detalhe",
+      "peso": 31,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-11",
+      "diasAtras": 7,
+      "tema": "error-exportar-pdf",
+      "peso": 97,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-abandono-busca-12",
+      "diasAtras": 5,
+      "tema": "abandono-busca",
+      "peso": 72,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-cursor-detalhe-12",
+      "diasAtras": 5,
+      "tema": "cursor-detalhe",
+      "peso": 30,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-dead-icone-categoria-12",
+      "diasAtras": 5,
+      "tema": "dead-icone-categoria",
+      "peso": 46,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-91450",
+      "diasAtras": 4,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 1,
+      "dispositivo": "Android · app 8.42",
+      "momento": "00:06",
+      "detalhe": "3 toques no rótulo; rola até o fim da lista."
+    },
+    {
+      "id": "FS-extrato-abandono-formato-exportar-12",
+      "diasAtras": 2,
+      "tema": "abandono-formato-exportar",
+      "peso": 24,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-error-exportar-pdf-12",
+      "diasAtras": 2,
+      "tema": "error-exportar-pdf",
+      "peso": 86,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-extrato-geral-12",
+      "diasAtras": 2,
+      "tema": null,
+      "peso": 13465,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-extrato-rage-carregar-mais-12",
+      "diasAtras": 2,
+      "tema": "rage-carregar-mais",
+      "peso": 322,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-extrato-rage-filtro-data-12",
+      "diasAtras": 2,
+      "tema": "rage-filtro-data",
+      "peso": 42,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-extrato-dead-rotulo-90-dias-12",
+      "diasAtras": 1,
+      "tema": "dead-rotulo-90-dias",
+      "peso": 783,
+      "dispositivo": "Android · app 8.41"
+    }
+  ]
+}

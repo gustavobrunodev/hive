@@ -1,5 +1,5 @@
-import { afterAll, beforeEach, describe, expect, it, vi, beforeAll } from 'vitest'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi, beforeAll } from 'vitest'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import {
@@ -14,6 +14,7 @@ import {
   utilityProcess
 } from 'electron'
 import { ConflictError } from './fsService'
+import { frenteValida, gravarRelatorio, relatorioTexto } from './designStudio/__tests__/fixtures'
 import { createConfigStore } from './configStore'
 
 // A real temp dir (not mocked) so the ConfigStore that src/main/index.ts
@@ -564,6 +565,137 @@ describe('main process bootstrap', () => {
       expect.objectContaining({ id: session.id, produto: 'Pix', title: 'Por onde você começaria?' })
     ])
     rmSync(root, { recursive: true, force: true })
+  })
+
+  /**
+   * Design Studio (Landing 19): the pages' reads and the generation, over the
+   * real IPC handlers, the real resources and the real disk. `app.getPath`
+   * answers the temp dir for every name here, so `<raiz>` is `<dir>/Design Studio`.
+   */
+  describe('designStudio:* (lote 2)', () => {
+    const root = (): string => join(userDataDir, 'Design Studio')
+    const PEDIDO = {
+      produto: 'Extrato',
+      fonte: 'likert',
+      agente: { id: 'claude-cli', nome: 'Claude', modelo: 'sonnet' }
+    }
+    /** The listeners main subscribed at boot: the review's, then the generation's. */
+    const bootListeners = (): Array<(event: unknown) => void> =>
+      agentOnEventCalls.slice(0, 2).map((call) => call.listener as (event: unknown) => void)
+
+    afterEach(() => {
+      rmSync(root(), { recursive: true, force: true })
+    })
+
+    it('designStudio:dados creates the Produto folders and answers the catalog, with no Relatório yet', async () => {
+      const dados = (await findHandler('designStudio:dados')({})) as {
+        catalogo: { produtos: Array<{ nome: string }> }
+        relatorios: unknown[]
+      }
+      expect(dados.catalogo.produtos.map((produto) => produto.nome)).toEqual([
+        'Câmbio',
+        'Extrato',
+        'Pix'
+      ])
+      expect(dados.relatorios).toEqual([])
+      expect(readdirSync(root()).sort()).toEqual(['Câmbio', 'Extrato', 'Pix'])
+    })
+
+    it('designStudio:relatorio reads one by its path, and null for a gone one or a non-path', async () => {
+      gravarRelatorio(
+        root(),
+        'Extrato',
+        'likert',
+        '2026-10-04-90d.md',
+        relatorioTexto(frenteValida())
+      )
+      const lido = (await findHandler('designStudio:relatorio')(
+        {},
+        'Extrato/relatorios/likert/2026-10-04-90d.md'
+      )) as { destaque: string } | null
+      expect(lido?.destaque).toBe('31% das respostas com nota 1 ou 2')
+      await expect(
+        findHandler('designStudio:relatorio')({}, 'Extrato/relatorios/likert/sumiu.md')
+      ).resolves.toBeNull()
+      await expect(findHandler('designStudio:relatorio')({}, 42)).resolves.toBeNull()
+    })
+
+    it('a generation planned over IPC is published on its turn’s done, and every window hears it', async () => {
+      const send = vi.fn()
+      const windows = vi
+        .spyOn(BrowserWindow, 'getAllWindows')
+        .mockReturnValue([
+          { webContents: { isDestroyed: () => false, send }, isFocused: () => true }
+        ] as unknown as ReturnType<typeof BrowserWindow.getAllWindows>)
+      try {
+        const plano = (await findHandler('designStudio:planejarGeracao')({}, PEDIDO)) as {
+          ok: true
+          turnId: string
+          prompt: string
+          scope: { cwd: string }
+        }
+        expect(plano.ok).toBe(true)
+        expect(plano.scope.cwd).toBe(join(root(), 'Extrato'))
+        expect(send).toHaveBeenCalledWith('designStudio:geracao', {
+          turnId: plano.turnId,
+          produto: 'Extrato',
+          fonte: 'likert',
+          estado: 'gerando',
+          passo: 1
+        })
+        await expect(findHandler('designStudio:geracaoAtual')({})).resolves.toMatchObject({
+          turnId: plano.turnId
+        })
+        // A second request while this one runs: refused, for any Produto.
+        await expect(
+          findHandler('designStudio:planejarGeracao')({}, { ...PEDIDO, produto: 'Pix' })
+        ).resolves.toEqual({ ok: false, motivo: 'ocupado' })
+
+        // The agent writes the working copy the prompt names; the turn ends.
+        const copia = /--saida "([^"]+)"/.exec(plano.prompt)?.[1] as string
+        writeFileSync(copia, relatorioTexto(frenteValida()), 'utf-8')
+        for (const listener of bootListeners()) listener({ type: 'done', turnId: plano.turnId })
+
+        expect(send).toHaveBeenCalledWith(
+          'designStudio:geracao',
+          expect.objectContaining({ turnId: plano.turnId, estado: 'pronto', dores: 6 })
+        )
+        const dados = (await findHandler('designStudio:dados')({})) as {
+          relatorios: Array<{ produto: string; fonte: string }>
+        }
+        expect(dados.relatorios).toEqual([
+          expect.objectContaining({ produto: 'Extrato', fonte: 'likert' })
+        ])
+        await expect(findHandler('designStudio:geracaoAtual')({})).resolves.toBeNull()
+      } finally {
+        windows.mockRestore()
+      }
+    })
+
+    it('abandonarGeracao forgets a planned generation; agent:stop ends one as interrupted', async () => {
+      const send = vi.fn()
+      const windows = vi
+        .spyOn(BrowserWindow, 'getAllWindows')
+        .mockReturnValue([
+          { webContents: { isDestroyed: () => true, send }, isFocused: () => true }
+        ] as unknown as ReturnType<typeof BrowserWindow.getAllWindows>)
+      try {
+        const primeiro = (await findHandler('designStudio:planejarGeracao')({}, PEDIDO)) as {
+          turnId: string
+        }
+        await findHandler('designStudio:abandonarGeracao')({}, primeiro.turnId)
+        await expect(findHandler('designStudio:geracaoAtual')({})).resolves.toBeNull()
+
+        await findHandler('designStudio:planejarGeracao')({}, PEDIDO)
+        await findHandler('agent:stop')({})
+        fakeAgentService.stop.mockClear()
+        await expect(findHandler('designStudio:geracaoAtual')({})).resolves.toBeNull()
+        // A destroyed window is never sent to.
+        expect(send).not.toHaveBeenCalled()
+      } finally {
+        windows.mockRestore()
+      }
+    })
   })
 
   // Structural proof of R1.3 (renderer never gets Node/fs/child_process access):

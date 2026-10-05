@@ -1,0 +1,787 @@
+{
+  "formato": "dados-de-exemplo/1",
+  "produto": "Pix",
+  "fonte": "fullstory",
+  "volume": 301800,
+  "categorias": [
+    {
+      "id": "agendamentos",
+      "nome": "Agendamentos",
+      "padrao": "O Pix agendado falha sem aviso, e o cliente só descobre quando a conta não é paga.",
+      "sugestao": "Avisar na véspera quando faltar saldo e resolver ali mesmo, no aviso."
+    },
+    {
+      "id": "seguranca",
+      "nome": "Erros e golpes",
+      "padrao": "Depois de um Pix errado ou de um golpe, o cliente não sabe como pedir a devolução.",
+      "sugestao": "Explicar a devolução no comprovante e abrir o pedido em dois toques."
+    },
+    {
+      "id": "chaves",
+      "nome": "Chaves e QR Code",
+      "padrao": "Colar e escolher a chave falha ou confunde, e o cliente repete o toque.",
+      "sugestao": "Fazer o Colar responder na hora, limpar a formatação e mostrar de quem é a chave."
+    },
+    {
+      "id": "limites",
+      "nome": "Limites",
+      "padrao": "O limite noturno e o limite por transação só aparecem quando o Pix é recusado.",
+      "sugestao": "Mostrar o limite disponível antes do valor e oferecer o ajuste ali mesmo."
+    },
+    {
+      "id": "comprovantes",
+      "nome": "Comprovantes",
+      "padrao": "O comprovante existe, mas não sai do app do jeito que o cliente precisa mandar.",
+      "sugestao": "Oferecer o compartilhamento do comprovante direto na tela de sucesso."
+    }
+  ],
+  "temas": [
+    {
+      "id": "rage-colar-chave",
+      "titulo": "Rage click em “Colar chave”",
+      "resumo": "O botão de colar não reage quando a área de transferência tem espaços extras.",
+      "tela": "Colar chave",
+      "categoria": "chaves",
+      "sinal": "Rage click",
+      "elemento": "Botão “Colar”"
+    },
+    {
+      "id": "dead-qr-salvo",
+      "titulo": "Dead click no QR Code salvo",
+      "resumo": "A miniatura do QR Code salvo parece tocável, mas não abre.",
+      "tela": "Área Pix",
+      "categoria": "chaves",
+      "sinal": "Dead click",
+      "elemento": "Miniatura do QR Code"
+    },
+    {
+      "id": "abandono-acima-limite",
+      "titulo": "Abandono na confirmação acima do limite",
+      "resumo": "A mensagem de limite aparece só na confirmação e o cliente desiste.",
+      "tela": "Confirmar",
+      "categoria": "limites",
+      "sinal": "Abandono de formulário",
+      "elemento": "Aviso “Limite excedido”"
+    },
+    {
+      "id": "error-agendar",
+      "titulo": "Error click em “Agendar”",
+      "resumo": "Agendar para um feriado falha com uma mensagem genérica.",
+      "tela": "Agendados",
+      "categoria": "agendamentos",
+      "sinal": "Error click",
+      "elemento": "Botão “Agendar”"
+    },
+    {
+      "id": "cursor-campo-valor",
+      "titulo": "Cursor agitado no campo de valor",
+      "resumo": "No internet banking, o cursor hesita sobre o valor antes do limite aparecer.",
+      "tela": "Valor",
+      "categoria": "limites",
+      "sinal": "Cursor agitado",
+      "elemento": "Campo “Valor”"
+    },
+    {
+      "id": "dead-favoritos",
+      "titulo": "Dead click na lista de favoritos",
+      "resumo": "Tocar no nome de um favorito não preenche a chave.",
+      "tela": "Área Pix",
+      "categoria": "chaves",
+      "sinal": "Dead click",
+      "elemento": "Contato favorito"
+    }
+  ],
+  "registros": [
+    {
+      "id": "FS-pix-dead-qr-salvo-0",
+      "diasAtras": 89,
+      "tema": "dead-qr-salvo",
+      "peso": 166,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-0",
+      "diasAtras": 87,
+      "tema": "cursor-campo-valor",
+      "peso": 30,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-0",
+      "diasAtras": 86,
+      "tema": "rage-colar-chave",
+      "peso": 352,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-0",
+      "diasAtras": 85,
+      "tema": "dead-favoritos",
+      "peso": 27,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-error-agendar-0",
+      "diasAtras": 85,
+      "tema": "error-agendar",
+      "peso": 68,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-geral-0",
+      "diasAtras": 85,
+      "tema": null,
+      "peso": 24750,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-0",
+      "diasAtras": 84,
+      "tema": "abandono-acima-limite",
+      "peso": 88,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-error-agendar-1",
+      "diasAtras": 83,
+      "tema": "error-agendar",
+      "peso": 60,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-1",
+      "diasAtras": 82,
+      "tema": "abandono-acima-limite",
+      "peso": 87,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-1",
+      "diasAtras": 82,
+      "tema": "cursor-campo-valor",
+      "peso": 30,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-1",
+      "diasAtras": 80,
+      "tema": "dead-favoritos",
+      "peso": 27,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-geral-1",
+      "diasAtras": 80,
+      "tema": null,
+      "peso": 21367,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-1",
+      "diasAtras": 78,
+      "tema": "dead-qr-salvo",
+      "peso": 179,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-1",
+      "diasAtras": 77,
+      "tema": "rage-colar-chave",
+      "peso": 352,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-geral-2",
+      "diasAtras": 75,
+      "tema": null,
+      "peso": 21833,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-2",
+      "diasAtras": 75,
+      "tema": "rage-colar-chave",
+      "peso": 345,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-2",
+      "diasAtras": 74,
+      "tema": "abandono-acima-limite",
+      "peso": 79,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-2",
+      "diasAtras": 74,
+      "tema": "dead-favoritos",
+      "peso": 27,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-error-agendar-2",
+      "diasAtras": 74,
+      "tema": "error-agendar",
+      "peso": 61,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-2",
+      "diasAtras": 73,
+      "tema": "dead-qr-salvo",
+      "peso": 161,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-2",
+      "diasAtras": 70,
+      "tema": "cursor-campo-valor",
+      "peso": 35,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-3",
+      "diasAtras": 69,
+      "tema": "dead-favoritos",
+      "peso": 24,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-3",
+      "diasAtras": 68,
+      "tema": "dead-qr-salvo",
+      "peso": 156,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-3",
+      "diasAtras": 66,
+      "tema": "rage-colar-chave",
+      "peso": 320,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-3",
+      "diasAtras": 65,
+      "tema": "abandono-acima-limite",
+      "peso": 85,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-3",
+      "diasAtras": 65,
+      "tema": "cursor-campo-valor",
+      "peso": 31,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-error-agendar-3",
+      "diasAtras": 65,
+      "tema": "error-agendar",
+      "peso": 58,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-geral-3",
+      "diasAtras": 63,
+      "tema": null,
+      "peso": 21050,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-4",
+      "diasAtras": 62,
+      "tema": "abandono-acima-limite",
+      "peso": 92,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-4",
+      "diasAtras": 61,
+      "tema": "dead-qr-salvo",
+      "peso": 165,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-4",
+      "diasAtras": 59,
+      "tema": "rage-colar-chave",
+      "peso": 382,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-4",
+      "diasAtras": 58,
+      "tema": "cursor-campo-valor",
+      "peso": 31,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-4",
+      "diasAtras": 58,
+      "tema": "dead-favoritos",
+      "peso": 24,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-error-agendar-4",
+      "diasAtras": 56,
+      "tema": "error-agendar",
+      "peso": 70,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-geral-4",
+      "diasAtras": 56,
+      "tema": null,
+      "peso": 24523,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-error-agendar-5",
+      "diasAtras": 54,
+      "tema": "error-agendar",
+      "peso": 68,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-5",
+      "diasAtras": 53,
+      "tema": "abandono-acima-limite",
+      "peso": 91,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-5",
+      "diasAtras": 53,
+      "tema": "cursor-campo-valor",
+      "peso": 29,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-5",
+      "diasAtras": 53,
+      "tema": "dead-favoritos",
+      "peso": 26,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-geral-5",
+      "diasAtras": 51,
+      "tema": null,
+      "peso": 23117,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-5",
+      "diasAtras": 50,
+      "tema": "rage-colar-chave",
+      "peso": 392,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-5",
+      "diasAtras": 49,
+      "tema": "dead-qr-salvo",
+      "peso": 177,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-6",
+      "diasAtras": 48,
+      "tema": "cursor-campo-valor",
+      "peso": 33,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-6",
+      "diasAtras": 48,
+      "tema": "rage-colar-chave",
+      "peso": 424,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-6",
+      "diasAtras": 47,
+      "tema": "dead-favoritos",
+      "peso": 27,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-geral-6",
+      "diasAtras": 46,
+      "tema": null,
+      "peso": 22393,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-6",
+      "diasAtras": 45,
+      "tema": "abandono-acima-limite",
+      "peso": 88,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-error-agendar-6",
+      "diasAtras": 45,
+      "tema": "error-agendar",
+      "peso": 67,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-6",
+      "diasAtras": 44,
+      "tema": "dead-qr-salvo",
+      "peso": 184,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-geral-7",
+      "diasAtras": 41,
+      "tema": null,
+      "peso": 20660,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-7",
+      "diasAtras": 39,
+      "tema": "dead-qr-salvo",
+      "peso": 162,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-7",
+      "diasAtras": 39,
+      "tema": "rage-colar-chave",
+      "peso": 371,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-7",
+      "diasAtras": 36,
+      "tema": "abandono-acima-limite",
+      "peso": 80,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-7",
+      "diasAtras": 36,
+      "tema": "cursor-campo-valor",
+      "peso": 33,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-error-agendar-7",
+      "diasAtras": 36,
+      "tema": "error-agendar",
+      "peso": 62,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-7",
+      "diasAtras": 35,
+      "tema": "dead-favoritos",
+      "peso": 27,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-8",
+      "diasAtras": 33,
+      "tema": "abandono-acima-limite",
+      "peso": 91,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-8",
+      "diasAtras": 33,
+      "tema": "cursor-campo-valor",
+      "peso": 32,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-8",
+      "diasAtras": 31,
+      "tema": "dead-favoritos",
+      "peso": 23,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-error-agendar-8",
+      "diasAtras": 31,
+      "tema": "error-agendar",
+      "peso": 66,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-geral-8",
+      "diasAtras": 31,
+      "tema": null,
+      "peso": 22299,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-8",
+      "diasAtras": 29,
+      "tema": "dead-qr-salvo",
+      "peso": 167,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-8",
+      "diasAtras": 28,
+      "tema": "rage-colar-chave",
+      "peso": 403,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-9",
+      "diasAtras": 26,
+      "tema": "dead-favoritos",
+      "peso": 25,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-geral-9",
+      "diasAtras": 26,
+      "tema": null,
+      "peso": 24082,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-9",
+      "diasAtras": 26,
+      "tema": "rage-colar-chave",
+      "peso": 417,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-9",
+      "diasAtras": 24,
+      "tema": "abandono-acima-limite",
+      "peso": 91,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-9",
+      "diasAtras": 24,
+      "tema": "dead-qr-salvo",
+      "peso": 166,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-error-agendar-9",
+      "diasAtras": 22,
+      "tema": "error-agendar",
+      "peso": 72,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-9",
+      "diasAtras": 21,
+      "tema": "cursor-campo-valor",
+      "peso": 30,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-94055",
+      "diasAtras": 18,
+      "tema": "dead-favoritos",
+      "peso": 1,
+      "dispositivo": "Android · app 8.41",
+      "momento": "00:14",
+      "detalhe": "2 toques no nome; procura a chave na agenda."
+    },
+    {
+      "id": "FS-pix-dead-favoritos-10",
+      "diasAtras": 18,
+      "tema": "dead-favoritos",
+      "peso": 25,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-10",
+      "diasAtras": 17,
+      "tema": "rage-colar-chave",
+      "peso": 472,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-94233",
+      "diasAtras": 16,
+      "tema": "cursor-campo-valor",
+      "peso": 1,
+      "dispositivo": "Internet banking · Chrome",
+      "momento": "00:57",
+      "detalhe": "11 segundos de movimento sobre o campo, sem clique."
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-10",
+      "diasAtras": 16,
+      "tema": "cursor-campo-valor",
+      "peso": 29,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-10",
+      "diasAtras": 16,
+      "tema": "dead-qr-salvo",
+      "peso": 193,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-error-agendar-10",
+      "diasAtras": 16,
+      "tema": "error-agendar",
+      "peso": 72,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-geral-10",
+      "diasAtras": 15,
+      "tema": null,
+      "peso": 23160,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-94471",
+      "diasAtras": 14,
+      "tema": "abandono-acima-limite",
+      "peso": 1,
+      "dispositivo": "Android · app 8.41",
+      "momento": "00:48",
+      "detalhe": "Lê o aviso e fecha o app."
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-10",
+      "diasAtras": 14,
+      "tema": "abandono-acima-limite",
+      "peso": 97,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-geral-11",
+      "diasAtras": 13,
+      "tema": null,
+      "peso": 22171,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-94812",
+      "diasAtras": 12,
+      "tema": "error-agendar",
+      "peso": 1,
+      "dispositivo": "iOS · app 8.42",
+      "momento": "00:35",
+      "detalhe": "Erro ao agendar para 12 de outubro; tenta outra data."
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-11",
+      "diasAtras": 12,
+      "tema": "rage-colar-chave",
+      "peso": 453,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-error-agendar-11",
+      "diasAtras": 11,
+      "tema": "error-agendar",
+      "peso": 70,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-95002",
+      "diasAtras": 9,
+      "tema": "dead-qr-salvo",
+      "peso": 1,
+      "dispositivo": "iOS · app 8.42",
+      "momento": "00:21",
+      "detalhe": "3 toques na miniatura."
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-11",
+      "diasAtras": 9,
+      "tema": "abandono-acima-limite",
+      "peso": 83,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-11",
+      "diasAtras": 9,
+      "tema": "dead-favoritos",
+      "peso": 28,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-11",
+      "diasAtras": 7,
+      "tema": "cursor-campo-valor",
+      "peso": 33,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-11",
+      "diasAtras": 7,
+      "tema": "dead-qr-salvo",
+      "peso": 177,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-cursor-campo-valor-12",
+      "diasAtras": 6,
+      "tema": "cursor-campo-valor",
+      "peso": 33,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-qr-salvo-12",
+      "diasAtras": 6,
+      "tema": "dead-qr-salvo",
+      "peso": 176,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-pix-error-agendar-12",
+      "diasAtras": 6,
+      "tema": "error-agendar",
+      "peso": 65,
+      "dispositivo": "Internet banking · Chrome"
+    },
+    {
+      "id": "FS-pix-geral-12",
+      "diasAtras": 5,
+      "tema": null,
+      "peso": 20300,
+      "dispositivo": "Android · app 8.42"
+    },
+    {
+      "id": "FS-95510",
+      "diasAtras": 3,
+      "tema": "rage-colar-chave",
+      "peso": 1,
+      "dispositivo": "Android · app 8.42",
+      "momento": "00:12",
+      "detalhe": "8 toques; digita a chave à mão."
+    },
+    {
+      "id": "FS-pix-abandono-acima-limite-12",
+      "diasAtras": 3,
+      "tema": "abandono-acima-limite",
+      "peso": 87,
+      "dispositivo": "iOS · app 8.42"
+    },
+    {
+      "id": "FS-pix-dead-favoritos-12",
+      "diasAtras": 0,
+      "tema": "dead-favoritos",
+      "peso": 24,
+      "dispositivo": "Android · app 8.41"
+    },
+    {
+      "id": "FS-pix-rage-colar-chave-12",
+      "diasAtras": 0,
+      "tema": "rage-colar-chave",
+      "peso": 436,
+      "dispositivo": "Internet banking · Chrome"
+    }
+  ]
+}

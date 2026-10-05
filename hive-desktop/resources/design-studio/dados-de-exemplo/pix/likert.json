@@ -1,0 +1,2143 @@
+{
+  "formato": "dados-de-exemplo/1",
+  "produto": "Pix",
+  "fonte": "likert",
+  "volume": 22480,
+  "categorias": [
+    {
+      "id": "agendamentos",
+      "nome": "Agendamentos",
+      "padrao": "O Pix agendado falha sem aviso, e o cliente só descobre quando a conta não é paga.",
+      "sugestao": "Avisar na véspera quando faltar saldo e resolver ali mesmo, no aviso."
+    },
+    {
+      "id": "seguranca",
+      "nome": "Erros e golpes",
+      "padrao": "Depois de um Pix errado ou de um golpe, o cliente não sabe como pedir a devolução.",
+      "sugestao": "Explicar a devolução no comprovante e abrir o pedido em dois toques."
+    },
+    {
+      "id": "chaves",
+      "nome": "Chaves e QR Code",
+      "padrao": "Colar e escolher a chave falha ou confunde, e o cliente repete o toque.",
+      "sugestao": "Fazer o Colar responder na hora, limpar a formatação e mostrar de quem é a chave."
+    },
+    {
+      "id": "limites",
+      "nome": "Limites",
+      "padrao": "O limite noturno e o limite por transação só aparecem quando o Pix é recusado.",
+      "sugestao": "Mostrar o limite disponível antes do valor e oferecer o ajuste ali mesmo."
+    },
+    {
+      "id": "comprovantes",
+      "nome": "Comprovantes",
+      "padrao": "O comprovante existe, mas não sai do app do jeito que o cliente precisa mandar.",
+      "sugestao": "Oferecer o compartilhamento do comprovante direto na tela de sucesso."
+    }
+  ],
+  "temas": [
+    {
+      "id": "agendado-falha",
+      "titulo": "O Pix agendado falha e ninguém me avisa",
+      "resumo": "Quando falta saldo no dia, o agendamento não acontece e o cliente só descobre depois.",
+      "tela": "Agendados",
+      "categoria": "agendamentos"
+    },
+    {
+      "id": "limite-noturno",
+      "titulo": "O limite noturno é confuso",
+      "resumo": "O cliente não sabe a partir de que horas vale o limite reduzido.",
+      "tela": "Valor",
+      "categoria": "limites"
+    },
+    {
+      "id": "chaves-demais",
+      "titulo": "Tenho chaves demais e não sei qual usar",
+      "resumo": "Gerenciar várias chaves é confuso; clientes não sabem qual compartilhar.",
+      "tela": "Minhas chaves",
+      "categoria": "chaves"
+    },
+    {
+      "id": "qr-nao-le",
+      "titulo": "A câmera não lê o QR Code de primeira",
+      "resumo": "Ler um QR Code impresso exige várias tentativas e aproximações.",
+      "tela": "Área Pix",
+      "categoria": "chaves"
+    },
+    {
+      "id": "comprovante-whatsapp",
+      "titulo": "Quero mandar o comprovante direto pelo WhatsApp",
+      "resumo": "Compartilhar o comprovante exige salvar a imagem antes.",
+      "tela": "Confirmar",
+      "categoria": "comprovantes"
+    },
+    {
+      "id": "pix-demora-concluir",
+      "titulo": "O Pix demora para aparecer como concluído",
+      "resumo": "O status fica em processamento por segundos que parecem minutos.",
+      "tela": null,
+      "categoria": "agendamentos"
+    }
+  ],
+  "registros": [
+    {
+      "id": "LK-pix-agendado-falha-01",
+      "diasAtras": 89,
+      "tema": "agendado-falha",
+      "peso": 9,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-00",
+      "diasAtras": 89,
+      "tema": "chaves-demais",
+      "peso": 7,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-03",
+      "diasAtras": 89,
+      "tema": null,
+      "peso": 273,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-04",
+      "diasAtras": 89,
+      "tema": null,
+      "peso": 478,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-00",
+      "diasAtras": 89,
+      "tema": "limite-noturno",
+      "peso": 25,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-00",
+      "diasAtras": 87,
+      "tema": "agendado-falha",
+      "peso": 45,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-05",
+      "diasAtras": 87,
+      "tema": null,
+      "peso": 616,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-01",
+      "diasAtras": 87,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-00",
+      "diasAtras": 86,
+      "tema": "comprovante-whatsapp",
+      "peso": 4,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-01",
+      "diasAtras": 86,
+      "tema": null,
+      "peso": 136,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-01",
+      "diasAtras": 86,
+      "tema": "qr-nao-le",
+      "peso": 10,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-00",
+      "diasAtras": 85,
+      "tema": "pix-demora-concluir",
+      "peso": 4,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-01",
+      "diasAtras": 84,
+      "tema": "chaves-demais",
+      "peso": 17,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-01",
+      "diasAtras": 84,
+      "tema": "comprovante-whatsapp",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-02",
+      "diasAtras": 84,
+      "tema": null,
+      "peso": 90,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-01",
+      "diasAtras": 84,
+      "tema": "limite-noturno",
+      "peso": 15,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-00",
+      "diasAtras": 84,
+      "tema": "qr-nao-le",
+      "peso": 12,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-11",
+      "diasAtras": 83,
+      "tema": "agendado-falha",
+      "peso": 9,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-11",
+      "diasAtras": 83,
+      "tema": "comprovante-whatsapp",
+      "peso": 10,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-14",
+      "diasAtras": 83,
+      "tema": null,
+      "peso": 481,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-13",
+      "diasAtras": 82,
+      "tema": null,
+      "peso": 275,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-10",
+      "diasAtras": 81,
+      "tema": "comprovante-whatsapp",
+      "peso": 5,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-10",
+      "diasAtras": 81,
+      "tema": "pix-demora-concluir",
+      "peso": 5,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-10",
+      "diasAtras": 81,
+      "tema": "qr-nao-le",
+      "peso": 11,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-10",
+      "diasAtras": 80,
+      "tema": "chaves-demais",
+      "peso": 7,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-12",
+      "diasAtras": 80,
+      "tema": null,
+      "peso": 91,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-11",
+      "diasAtras": 79,
+      "tema": null,
+      "peso": 137,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-10",
+      "diasAtras": 79,
+      "tema": "limite-noturno",
+      "peso": 22,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-11",
+      "diasAtras": 79,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-11",
+      "diasAtras": 79,
+      "tema": "qr-nao-le",
+      "peso": 9,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-10",
+      "diasAtras": 78,
+      "tema": "agendado-falha",
+      "peso": 44,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-11",
+      "diasAtras": 78,
+      "tema": "chaves-demais",
+      "peso": 14,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-15",
+      "diasAtras": 78,
+      "tema": null,
+      "peso": 619,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-11",
+      "diasAtras": 77,
+      "tema": "limite-noturno",
+      "peso": 13,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-21",
+      "diasAtras": 76,
+      "tema": "comprovante-whatsapp",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-24",
+      "diasAtras": 76,
+      "tema": null,
+      "peso": 489,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-21",
+      "diasAtras": 76,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-20",
+      "diasAtras": 75,
+      "tema": "chaves-demais",
+      "peso": 7,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-21",
+      "diasAtras": 75,
+      "tema": "qr-nao-le",
+      "peso": 9,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-25",
+      "diasAtras": 74,
+      "tema": null,
+      "peso": 629,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-20",
+      "diasAtras": 74,
+      "tema": "pix-demora-concluir",
+      "peso": 5,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-21",
+      "diasAtras": 73,
+      "tema": null,
+      "peso": 139,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-21",
+      "diasAtras": 73,
+      "tema": "limite-noturno",
+      "peso": 14,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-20",
+      "diasAtras": 73,
+      "tema": "qr-nao-le",
+      "peso": 11,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-21",
+      "diasAtras": 72,
+      "tema": "agendado-falha",
+      "peso": 11,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-22",
+      "diasAtras": 72,
+      "tema": null,
+      "peso": 92,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-20",
+      "diasAtras": 71,
+      "tema": "comprovante-whatsapp",
+      "peso": 4,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-20",
+      "diasAtras": 71,
+      "tema": "limite-noturno",
+      "peso": 23,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-20",
+      "diasAtras": 70,
+      "tema": "agendado-falha",
+      "peso": 51,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-21",
+      "diasAtras": 70,
+      "tema": "chaves-demais",
+      "peso": 16,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-23",
+      "diasAtras": 70,
+      "tema": null,
+      "peso": 279,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-31",
+      "diasAtras": 68,
+      "tema": "agendado-falha",
+      "peso": 11,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-30",
+      "diasAtras": 68,
+      "tema": "chaves-demais",
+      "peso": 7,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-31",
+      "diasAtras": 68,
+      "tema": null,
+      "peso": 124,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-30",
+      "diasAtras": 68,
+      "tema": "qr-nao-le",
+      "peso": 11,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-35",
+      "diasAtras": 67,
+      "tema": null,
+      "peso": 560,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-31",
+      "diasAtras": 66,
+      "tema": "chaves-demais",
+      "peso": 16,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-30",
+      "diasAtras": 66,
+      "tema": "limite-noturno",
+      "peso": 24,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-30",
+      "diasAtras": 66,
+      "tema": "pix-demora-concluir",
+      "peso": 5,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-31",
+      "diasAtras": 66,
+      "tema": "qr-nao-le",
+      "peso": 9,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-31",
+      "diasAtras": 65,
+      "tema": "comprovante-whatsapp",
+      "peso": 10,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-33",
+      "diasAtras": 65,
+      "tema": null,
+      "peso": 249,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-34",
+      "diasAtras": 65,
+      "tema": null,
+      "peso": 435,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-31",
+      "diasAtras": 64,
+      "tema": "limite-noturno",
+      "peso": 15,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-31",
+      "diasAtras": 64,
+      "tema": "pix-demora-concluir",
+      "peso": 7,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-30",
+      "diasAtras": 63,
+      "tema": "agendado-falha",
+      "peso": 53,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-30",
+      "diasAtras": 63,
+      "tema": "comprovante-whatsapp",
+      "peso": 4,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-32",
+      "diasAtras": 63,
+      "tema": null,
+      "peso": 82,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-41",
+      "diasAtras": 62,
+      "tema": "agendado-falha",
+      "peso": 12,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-42",
+      "diasAtras": 62,
+      "tema": null,
+      "peso": 82,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-41",
+      "diasAtras": 62,
+      "tema": "limite-noturno",
+      "peso": 16,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-41",
+      "diasAtras": 61,
+      "tema": "qr-nao-le",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-40",
+      "diasAtras": 60,
+      "tema": "agendado-falha",
+      "peso": 56,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-43",
+      "diasAtras": 60,
+      "tema": null,
+      "peso": 248,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-40",
+      "diasAtras": 60,
+      "tema": "limite-noturno",
+      "peso": 26,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-41",
+      "diasAtras": 60,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-40",
+      "diasAtras": 59,
+      "tema": "comprovante-whatsapp",
+      "peso": 4,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-40",
+      "diasAtras": 59,
+      "tema": "qr-nao-le",
+      "peso": 12,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-41",
+      "diasAtras": 58,
+      "tema": "chaves-demais",
+      "peso": 17,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-44",
+      "diasAtras": 58,
+      "tema": null,
+      "peso": 435,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-40",
+      "diasAtras": 58,
+      "tema": "pix-demora-concluir",
+      "peso": 5,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-41",
+      "diasAtras": 57,
+      "tema": "comprovante-whatsapp",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-41",
+      "diasAtras": 57,
+      "tema": null,
+      "peso": 124,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-40",
+      "diasAtras": 56,
+      "tema": "chaves-demais",
+      "peso": 8,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-45",
+      "diasAtras": 56,
+      "tema": null,
+      "peso": 559,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-52",
+      "diasAtras": 55,
+      "tema": null,
+      "peso": 90,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-55",
+      "diasAtras": 55,
+      "tema": null,
+      "peso": 608,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-50",
+      "diasAtras": 55,
+      "tema": "pix-demora-concluir",
+      "peso": 4,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-50",
+      "diasAtras": 54,
+      "tema": "comprovante-whatsapp",
+      "peso": 5,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-51",
+      "diasAtras": 54,
+      "tema": null,
+      "peso": 134,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-51",
+      "diasAtras": 54,
+      "tema": "limite-noturno",
+      "peso": 15,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-54",
+      "diasAtras": 53,
+      "tema": null,
+      "peso": 474,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-51",
+      "diasAtras": 53,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-50",
+      "diasAtras": 52,
+      "tema": "qr-nao-le",
+      "peso": 13,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-50",
+      "diasAtras": 51,
+      "tema": "agendado-falha",
+      "peso": 49,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-50",
+      "diasAtras": 51,
+      "tema": "chaves-demais",
+      "peso": 7,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-53",
+      "diasAtras": 50,
+      "tema": null,
+      "peso": 271,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-51",
+      "diasAtras": 50,
+      "tema": "qr-nao-le",
+      "peso": 10,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-51",
+      "diasAtras": 49,
+      "tema": "agendado-falha",
+      "peso": 10,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-51",
+      "diasAtras": 49,
+      "tema": "chaves-demais",
+      "peso": 15,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-51",
+      "diasAtras": 49,
+      "tema": "comprovante-whatsapp",
+      "peso": 11,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-50",
+      "diasAtras": 49,
+      "tema": "limite-noturno",
+      "peso": 25,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-61",
+      "diasAtras": 48,
+      "tema": "agendado-falha",
+      "peso": 11,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-64",
+      "diasAtras": 48,
+      "tema": null,
+      "peso": 487,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-60",
+      "diasAtras": 48,
+      "tema": "qr-nao-le",
+      "peso": 12,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-61",
+      "diasAtras": 47,
+      "tema": null,
+      "peso": 138,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-60",
+      "diasAtras": 47,
+      "tema": "pix-demora-concluir",
+      "peso": 5,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-60",
+      "diasAtras": 46,
+      "tema": "agendado-falha",
+      "peso": 54,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-62",
+      "diasAtras": 46,
+      "tema": null,
+      "peso": 92,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-65",
+      "diasAtras": 46,
+      "tema": null,
+      "peso": 627,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-61",
+      "diasAtras": 44,
+      "tema": "chaves-demais",
+      "peso": 15,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-60",
+      "diasAtras": 44,
+      "tema": "comprovante-whatsapp",
+      "peso": 5,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-63",
+      "diasAtras": 44,
+      "tema": null,
+      "peso": 278,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-61",
+      "diasAtras": 44,
+      "tema": "limite-noturno",
+      "peso": 14,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-61",
+      "diasAtras": 43,
+      "tema": "qr-nao-le",
+      "peso": 9,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-60",
+      "diasAtras": 42,
+      "tema": "chaves-demais",
+      "peso": 7,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-61",
+      "diasAtras": 42,
+      "tema": "comprovante-whatsapp",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-60",
+      "diasAtras": 42,
+      "tema": "limite-noturno",
+      "peso": 22,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-61",
+      "diasAtras": 42,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-71",
+      "diasAtras": 41,
+      "tema": "agendado-falha",
+      "peso": 11,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-72",
+      "diasAtras": 41,
+      "tema": null,
+      "peso": 92,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-70",
+      "diasAtras": 41,
+      "tema": "limite-noturno",
+      "peso": 24,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-70",
+      "diasAtras": 40,
+      "tema": "comprovante-whatsapp",
+      "peso": 5,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-75",
+      "diasAtras": 40,
+      "tema": null,
+      "peso": 624,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-70",
+      "diasAtras": 39,
+      "tema": "chaves-demais",
+      "peso": 7,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-71",
+      "diasAtras": 39,
+      "tema": null,
+      "peso": 137,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-71",
+      "diasAtras": 39,
+      "tema": "limite-noturno",
+      "peso": 15,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-70",
+      "diasAtras": 39,
+      "tema": "qr-nao-le",
+      "peso": 11,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-74",
+      "diasAtras": 38,
+      "tema": null,
+      "peso": 485,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-70",
+      "diasAtras": 38,
+      "tema": "pix-demora-concluir",
+      "peso": 5,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-71",
+      "diasAtras": 37,
+      "tema": "chaves-demais",
+      "peso": 15,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-71",
+      "diasAtras": 37,
+      "tema": "qr-nao-le",
+      "peso": 9,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-70",
+      "diasAtras": 36,
+      "tema": "agendado-falha",
+      "peso": 56,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-73",
+      "diasAtras": 36,
+      "tema": null,
+      "peso": 277,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-71",
+      "diasAtras": 36,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-71",
+      "diasAtras": 35,
+      "tema": "comprovante-whatsapp",
+      "peso": 10,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-85",
+      "diasAtras": 34,
+      "tema": null,
+      "peso": 542,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-80",
+      "diasAtras": 34,
+      "tema": "qr-nao-le",
+      "peso": 11,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-80",
+      "diasAtras": 33,
+      "tema": "agendado-falha",
+      "peso": 64,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-80",
+      "diasAtras": 33,
+      "tema": "comprovante-whatsapp",
+      "peso": 4,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-81",
+      "diasAtras": 33,
+      "tema": null,
+      "peso": 119,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-81",
+      "diasAtras": 33,
+      "tema": "limite-noturno",
+      "peso": 15,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-39020",
+      "diasAtras": 32,
+      "tema": "chaves-demais",
+      "peso": 1,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Tenho CPF, celular, e-mail e aleatória. Qual eu passo?"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-81",
+      "diasAtras": 32,
+      "tema": "pix-demora-concluir",
+      "peso": 7,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-81",
+      "diasAtras": 31,
+      "tema": "comprovante-whatsapp",
+      "peso": 10,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-82",
+      "diasAtras": 31,
+      "tema": null,
+      "peso": 80,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-80",
+      "diasAtras": 31,
+      "tema": "limite-noturno",
+      "peso": 25,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-81",
+      "diasAtras": 30,
+      "tema": "chaves-demais",
+      "peso": 17,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-80",
+      "diasAtras": 30,
+      "tema": "pix-demora-concluir",
+      "peso": 5,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-83",
+      "diasAtras": 29,
+      "tema": null,
+      "peso": 241,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-84",
+      "diasAtras": 29,
+      "tema": null,
+      "peso": 421,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-81",
+      "diasAtras": 29,
+      "tema": "qr-nao-le",
+      "peso": 9,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-81",
+      "diasAtras": 28,
+      "tema": "agendado-falha",
+      "peso": 13,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-80",
+      "diasAtras": 28,
+      "tema": "chaves-demais",
+      "peso": 8,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-91",
+      "diasAtras": 27,
+      "tema": "agendado-falha",
+      "peso": 12,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-94",
+      "diasAtras": 26,
+      "tema": null,
+      "peso": 455,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-91",
+      "diasAtras": 26,
+      "tema": "qr-nao-le",
+      "peso": 10,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-91",
+      "diasAtras": 25,
+      "tema": "comprovante-whatsapp",
+      "peso": 11,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-93",
+      "diasAtras": 25,
+      "tema": null,
+      "peso": 260,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-39388",
+      "diasAtras": 24,
+      "tema": "pix-demora-concluir",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Fiquei olhando a tela de processando e achei que tinha dado erro."
+    },
+    {
+      "id": "LK-pix-chaves-demais-90",
+      "diasAtras": 23,
+      "tema": "chaves-demais",
+      "peso": 8,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-90",
+      "diasAtras": 23,
+      "tema": "comprovante-whatsapp",
+      "peso": 5,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-92",
+      "diasAtras": 23,
+      "tema": null,
+      "peso": 86,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-90",
+      "diasAtras": 23,
+      "tema": "limite-noturno",
+      "peso": 28,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-90",
+      "diasAtras": 23,
+      "tema": "pix-demora-concluir",
+      "peso": 5,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-39502",
+      "diasAtras": 22,
+      "tema": "limite-noturno",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Às 20h01 meu Pix não passou. Ninguém explica o horário."
+    },
+    {
+      "id": "LK-pix-agendado-falha-90",
+      "diasAtras": 22,
+      "tema": "agendado-falha",
+      "peso": 59,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-91",
+      "diasAtras": 22,
+      "tema": null,
+      "peso": 129,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-91",
+      "diasAtras": 21,
+      "tema": "chaves-demais",
+      "peso": 17,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-95",
+      "diasAtras": 21,
+      "tema": null,
+      "peso": 586,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-91",
+      "diasAtras": 21,
+      "tema": "limite-noturno",
+      "peso": 17,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-91",
+      "diasAtras": 21,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-90",
+      "diasAtras": 21,
+      "tema": "qr-nao-le",
+      "peso": 13,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-101",
+      "diasAtras": 20,
+      "tema": "agendado-falha",
+      "peso": 12,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-105",
+      "diasAtras": 20,
+      "tema": null,
+      "peso": 589,
+      "nota": 5,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-100",
+      "diasAtras": 20,
+      "tema": "limite-noturno",
+      "peso": 24,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-100",
+      "diasAtras": 20,
+      "tema": "pix-demora-concluir",
+      "peso": 5,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-100",
+      "diasAtras": 19,
+      "tema": "chaves-demais",
+      "peso": 7,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-100",
+      "diasAtras": 19,
+      "tema": "comprovante-whatsapp",
+      "peso": 5,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-39711",
+      "diasAtras": 18,
+      "tema": "qr-nao-le",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Tenho que afastar e aproximar o celular umas cinco vezes para ler o QR."
+    },
+    {
+      "id": "LK-pix-geral-103",
+      "diasAtras": 18,
+      "tema": null,
+      "peso": 262,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-104",
+      "diasAtras": 18,
+      "tema": null,
+      "peso": 458,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-101",
+      "diasAtras": 18,
+      "tema": "limite-noturno",
+      "peso": 15,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-101",
+      "diasAtras": 18,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-100",
+      "diasAtras": 18,
+      "tema": "qr-nao-le",
+      "peso": 12,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-101",
+      "diasAtras": 17,
+      "tema": "chaves-demais",
+      "peso": 16,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-102",
+      "diasAtras": 16,
+      "tema": null,
+      "peso": 87,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-101",
+      "diasAtras": 16,
+      "tema": "qr-nao-le",
+      "peso": 10,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-39874",
+      "diasAtras": 15,
+      "tema": "agendado-falha",
+      "peso": 1,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Queria uma notificação no dia anterior."
+    },
+    {
+      "id": "LK-pix-agendado-falha-100",
+      "diasAtras": 15,
+      "tema": "agendado-falha",
+      "peso": 59,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-101",
+      "diasAtras": 14,
+      "tema": "comprovante-whatsapp",
+      "peso": 12,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-101",
+      "diasAtras": 14,
+      "tema": null,
+      "peso": 130,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-110",
+      "diasAtras": 13,
+      "tema": "agendado-falha",
+      "peso": 59,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-110",
+      "diasAtras": 13,
+      "tema": "limite-noturno",
+      "peso": 25,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-111",
+      "diasAtras": 13,
+      "tema": "qr-nao-le",
+      "peso": 10,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-111",
+      "diasAtras": 12,
+      "tema": "chaves-demais",
+      "peso": 15,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-113",
+      "diasAtras": 12,
+      "tema": null,
+      "peso": 293,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-110",
+      "diasAtras": 12,
+      "tema": "pix-demora-concluir",
+      "peso": 4,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-40055",
+      "diasAtras": 11,
+      "tema": "comprovante-whatsapp",
+      "peso": 1,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física",
+      "texto": "Todo Pix eu salvo o print para mandar no WhatsApp. Podia ter um botão."
+    },
+    {
+      "id": "LK-pix-geral-114",
+      "diasAtras": 11,
+      "tema": null,
+      "peso": 513,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-110",
+      "diasAtras": 11,
+      "tema": "qr-nao-le",
+      "peso": 12,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-110",
+      "diasAtras": 10,
+      "tema": "chaves-demais",
+      "peso": 7,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-110",
+      "diasAtras": 9,
+      "tema": "comprovante-whatsapp",
+      "peso": 5,
+      "nota": 2,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-115",
+      "diasAtras": 9,
+      "tema": null,
+      "peso": 660,
+      "nota": 5,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-40211",
+      "diasAtras": 8,
+      "tema": "agendado-falha",
+      "peso": 1,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física",
+      "texto": "Agendei o aluguel, faltou saldo e o app não avisou. Paguei multa."
+    },
+    {
+      "id": "LK-pix-agendado-falha-111",
+      "diasAtras": 8,
+      "tema": "agendado-falha",
+      "peso": 12,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-111",
+      "diasAtras": 8,
+      "tema": null,
+      "peso": 146,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-111",
+      "diasAtras": 8,
+      "tema": "limite-noturno",
+      "peso": 15,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-111",
+      "diasAtras": 7,
+      "tema": "comprovante-whatsapp",
+      "peso": 12,
+      "nota": 4,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-112",
+      "diasAtras": 7,
+      "tema": null,
+      "peso": 97,
+      "nota": 2,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-111",
+      "diasAtras": 7,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 4,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-123",
+      "diasAtras": 6,
+      "tema": null,
+      "peso": 257,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-120",
+      "diasAtras": 5,
+      "tema": "limite-noturno",
+      "peso": 24,
+      "nota": 1,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-120",
+      "diasAtras": 5,
+      "tema": "qr-nao-le",
+      "peso": 11,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-122",
+      "diasAtras": 4,
+      "tema": null,
+      "peso": 85,
+      "nota": 2,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-120",
+      "diasAtras": 3,
+      "tema": "chaves-demais",
+      "peso": 7,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-121",
+      "diasAtras": 3,
+      "tema": "comprovante-whatsapp",
+      "peso": 11,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-121",
+      "diasAtras": 3,
+      "tema": null,
+      "peso": 127,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-limite-noturno-121",
+      "diasAtras": 3,
+      "tema": "limite-noturno",
+      "peso": 15,
+      "nota": 3,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-120",
+      "diasAtras": 3,
+      "tema": "pix-demora-concluir",
+      "peso": 5,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-qr-nao-le-121",
+      "diasAtras": 3,
+      "tema": "qr-nao-le",
+      "peso": 9,
+      "nota": 3,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-120",
+      "diasAtras": 2,
+      "tema": "agendado-falha",
+      "peso": 66,
+      "nota": 1,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-125",
+      "diasAtras": 2,
+      "tema": null,
+      "peso": 578,
+      "nota": 5,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-chaves-demais-121",
+      "diasAtras": 1,
+      "tema": "chaves-demais",
+      "peso": 16,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-comprovante-whatsapp-120",
+      "diasAtras": 1,
+      "tema": "comprovante-whatsapp",
+      "peso": 5,
+      "nota": 1,
+      "canal": "Internet banking",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-pix-demora-concluir-121",
+      "diasAtras": 1,
+      "tema": "pix-demora-concluir",
+      "peso": 6,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-agendado-falha-121",
+      "diasAtras": 0,
+      "tema": "agendado-falha",
+      "peso": 14,
+      "nota": 3,
+      "canal": "App Android",
+      "perfil": "Pessoa física"
+    },
+    {
+      "id": "LK-pix-geral-124",
+      "diasAtras": 0,
+      "tema": null,
+      "peso": 449,
+      "nota": 4,
+      "canal": "App iOS",
+      "perfil": "Pessoa física"
+    }
+  ]
+}

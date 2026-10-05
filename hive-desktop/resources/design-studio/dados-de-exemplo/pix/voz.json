@@ -1,0 +1,1369 @@
+{
+  "formato": "dados-de-exemplo/1",
+  "produto": "Pix",
+  "fonte": "voz",
+  "volume": 6112,
+  "categorias": [
+    {
+      "id": "agendamentos",
+      "nome": "Agendamentos",
+      "padrao": "O Pix agendado falha sem aviso, e o cliente só descobre quando a conta não é paga.",
+      "sugestao": "Avisar na véspera quando faltar saldo e resolver ali mesmo, no aviso."
+    },
+    {
+      "id": "seguranca",
+      "nome": "Erros e golpes",
+      "padrao": "Depois de um Pix errado ou de um golpe, o cliente não sabe como pedir a devolução.",
+      "sugestao": "Explicar a devolução no comprovante e abrir o pedido em dois toques."
+    },
+    {
+      "id": "chaves",
+      "nome": "Chaves e QR Code",
+      "padrao": "Colar e escolher a chave falha ou confunde, e o cliente repete o toque.",
+      "sugestao": "Fazer o Colar responder na hora, limpar a formatação e mostrar de quem é a chave."
+    },
+    {
+      "id": "limites",
+      "nome": "Limites",
+      "padrao": "O limite noturno e o limite por transação só aparecem quando o Pix é recusado.",
+      "sugestao": "Mostrar o limite disponível antes do valor e oferecer o ajuste ali mesmo."
+    },
+    {
+      "id": "comprovantes",
+      "nome": "Comprovantes",
+      "padrao": "O comprovante existe, mas não sai do app do jeito que o cliente precisa mandar.",
+      "sugestao": "Oferecer o compartilhamento do comprovante direto na tela de sucesso."
+    }
+  ],
+  "temas": [
+    {
+      "id": "pix-pessoa-errada",
+      "titulo": "Fiz um Pix para a pessoa errada, como devolvo?",
+      "resumo": "Cliente não encontra o caminho de pedido de devolução no app.",
+      "tela": "Confirmar",
+      "categoria": "seguranca",
+      "motivo": "Devolução de Pix"
+    },
+    {
+      "id": "golpe-pix",
+      "titulo": "Caí num golpe e quero cancelar o Pix",
+      "resumo": "Ligações urgentes de clientes que fizeram Pix para golpistas.",
+      "tela": "Confirmar",
+      "categoria": "seguranca",
+      "motivo": "Golpe"
+    },
+    {
+      "id": "agendado-nao-feito",
+      "titulo": "O Pix agendado não foi feito",
+      "resumo": "Cliente descobre pelo recebedor que o agendamento falhou.",
+      "tela": "Agendados",
+      "categoria": "agendamentos",
+      "motivo": "Agendamento"
+    },
+    {
+      "id": "aumentar-limite",
+      "titulo": "Quero aumentar meu limite de Pix",
+      "resumo": "O ajuste de limite existe no app, mas o cliente não o encontra.",
+      "tela": "Valor",
+      "categoria": "limites",
+      "motivo": "Limite de Pix"
+    },
+    {
+      "id": "chave-outro-banco",
+      "titulo": "Minha chave está presa em outro banco",
+      "resumo": "A portabilidade da chave não é explicada, e o cliente não consegue cadastrá-la.",
+      "tela": "Minhas chaves",
+      "categoria": "chaves",
+      "motivo": "Portabilidade de chave"
+    },
+    {
+      "id": "devolucao-demora",
+      "titulo": "A devolução do Pix ainda não caiu",
+      "resumo": "Depois de pedir a devolução, o cliente não sabe em quanto tempo o dinheiro volta.",
+      "tela": null,
+      "categoria": "seguranca",
+      "motivo": "Devolução em andamento"
+    }
+  ],
+  "registros": [
+    {
+      "id": "VC-pix-agendado-nao-feito-01",
+      "diasAtras": 89,
+      "tema": "agendado-nao-feito",
+      "peso": 27,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-01",
+      "diasAtras": 89,
+      "tema": "chave-outro-banco",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-00",
+      "diasAtras": 89,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-01",
+      "diasAtras": 89,
+      "tema": "pix-pessoa-errada",
+      "peso": 50,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-00",
+      "diasAtras": 88,
+      "tema": "agendado-nao-feito",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-01",
+      "diasAtras": 88,
+      "tema": "devolucao-demora",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-00",
+      "diasAtras": 87,
+      "tema": "golpe-pix",
+      "peso": 7,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-01",
+      "diasAtras": 86,
+      "tema": "aumentar-limite",
+      "peso": 21,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-geral-0",
+      "diasAtras": 86,
+      "tema": null,
+      "peso": 283,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-01",
+      "diasAtras": 85,
+      "tema": "golpe-pix",
+      "peso": 42,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-00",
+      "diasAtras": 84,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-00",
+      "diasAtras": 84,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-00",
+      "diasAtras": 84,
+      "tema": "pix-pessoa-errada",
+      "peso": 19,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-10",
+      "diasAtras": 83,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-10",
+      "diasAtras": 83,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-10",
+      "diasAtras": 83,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-11",
+      "diasAtras": 82,
+      "tema": "agendado-nao-feito",
+      "peso": 28,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-11",
+      "diasAtras": 81,
+      "tema": "aumentar-limite",
+      "peso": 21,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-geral-1",
+      "diasAtras": 81,
+      "tema": null,
+      "peso": 244,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-11",
+      "diasAtras": 80,
+      "tema": "golpe-pix",
+      "peso": 42,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-11",
+      "diasAtras": 80,
+      "tema": "pix-pessoa-errada",
+      "peso": 44,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-11",
+      "diasAtras": 78,
+      "tema": "chave-outro-banco",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-11",
+      "diasAtras": 78,
+      "tema": "devolucao-demora",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-10",
+      "diasAtras": 78,
+      "tema": "golpe-pix",
+      "peso": 7,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-10",
+      "diasAtras": 78,
+      "tema": "pix-pessoa-errada",
+      "peso": 16,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-10",
+      "diasAtras": 77,
+      "tema": "agendado-nao-feito",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-21",
+      "diasAtras": 76,
+      "tema": "agendado-nao-feito",
+      "peso": 31,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-21",
+      "diasAtras": 76,
+      "tema": "aumentar-limite",
+      "peso": 19,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-21",
+      "diasAtras": 76,
+      "tema": "devolucao-demora",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-geral-2",
+      "diasAtras": 76,
+      "tema": null,
+      "peso": 250,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-20",
+      "diasAtras": 74,
+      "tema": "agendado-nao-feito",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-20",
+      "diasAtras": 74,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-20",
+      "diasAtras": 74,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-20",
+      "diasAtras": 74,
+      "tema": "pix-pessoa-errada",
+      "peso": 18,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-21",
+      "diasAtras": 72,
+      "tema": "chave-outro-banco",
+      "peso": 14,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-20",
+      "diasAtras": 72,
+      "tema": "golpe-pix",
+      "peso": 7,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-21",
+      "diasAtras": 72,
+      "tema": "pix-pessoa-errada",
+      "peso": 48,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-20",
+      "diasAtras": 71,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-golpe-pix-21",
+      "diasAtras": 70,
+      "tema": "golpe-pix",
+      "peso": 45,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-30",
+      "diasAtras": 69,
+      "tema": "agendado-nao-feito",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-31",
+      "diasAtras": 69,
+      "tema": "pix-pessoa-errada",
+      "peso": 52,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-31",
+      "diasAtras": 68,
+      "tema": "aumentar-limite",
+      "peso": 20,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-30",
+      "diasAtras": 68,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-golpe-pix-30",
+      "diasAtras": 68,
+      "tema": "golpe-pix",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-31",
+      "diasAtras": 67,
+      "tema": "agendado-nao-feito",
+      "peso": 31,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-31",
+      "diasAtras": 67,
+      "tema": "chave-outro-banco",
+      "peso": 14,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-30",
+      "diasAtras": 67,
+      "tema": "pix-pessoa-errada",
+      "peso": 19,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-30",
+      "diasAtras": 65,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-geral-3",
+      "diasAtras": 64,
+      "tema": null,
+      "peso": 241,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-30",
+      "diasAtras": 63,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-31",
+      "diasAtras": 63,
+      "tema": "devolucao-demora",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-31",
+      "diasAtras": 63,
+      "tema": "golpe-pix",
+      "peso": 50,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-41",
+      "diasAtras": 62,
+      "tema": "devolucao-demora",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-40",
+      "diasAtras": 62,
+      "tema": "golpe-pix",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-40",
+      "diasAtras": 61,
+      "tema": "agendado-nao-feito",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-40",
+      "diasAtras": 61,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-41",
+      "diasAtras": 61,
+      "tema": "pix-pessoa-errada",
+      "peso": 55,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-41",
+      "diasAtras": 60,
+      "tema": "golpe-pix",
+      "peso": 46,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-41",
+      "diasAtras": 59,
+      "tema": "aumentar-limite",
+      "peso": 22,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-41",
+      "diasAtras": 59,
+      "tema": "chave-outro-banco",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-40",
+      "diasAtras": 57,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-40",
+      "diasAtras": 57,
+      "tema": "devolucao-demora",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-geral-4",
+      "diasAtras": 57,
+      "tema": null,
+      "peso": 280,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-41",
+      "diasAtras": 56,
+      "tema": "agendado-nao-feito",
+      "peso": 29,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-40",
+      "diasAtras": 56,
+      "tema": "pix-pessoa-errada",
+      "peso": 20,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-50",
+      "diasAtras": 55,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-golpe-pix-51",
+      "diasAtras": 55,
+      "tema": "golpe-pix",
+      "peso": 46,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-51",
+      "diasAtras": 53,
+      "tema": "aumentar-limite",
+      "peso": 22,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-51",
+      "diasAtras": 53,
+      "tema": "chave-outro-banco",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-50",
+      "diasAtras": 53,
+      "tema": "golpe-pix",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-51",
+      "diasAtras": 53,
+      "tema": "pix-pessoa-errada",
+      "peso": 52,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-geral-5",
+      "diasAtras": 52,
+      "tema": null,
+      "peso": 264,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-50",
+      "diasAtras": 51,
+      "tema": "agendado-nao-feito",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-50",
+      "diasAtras": 51,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-51",
+      "diasAtras": 51,
+      "tema": "devolucao-demora",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-50",
+      "diasAtras": 51,
+      "tema": "pix-pessoa-errada",
+      "peso": 19,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-51",
+      "diasAtras": 49,
+      "tema": "agendado-nao-feito",
+      "peso": 29,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-50",
+      "diasAtras": 49,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-60",
+      "diasAtras": 47,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-60",
+      "diasAtras": 47,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-geral-6",
+      "diasAtras": 47,
+      "tema": null,
+      "peso": 256,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-61",
+      "diasAtras": 47,
+      "tema": "golpe-pix",
+      "peso": 42,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-60",
+      "diasAtras": 46,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-61",
+      "diasAtras": 45,
+      "tema": "agendado-nao-feito",
+      "peso": 31,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-61",
+      "diasAtras": 45,
+      "tema": "devolucao-demora",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-60",
+      "diasAtras": 45,
+      "tema": "pix-pessoa-errada",
+      "peso": 18,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-61",
+      "diasAtras": 44,
+      "tema": "chave-outro-banco",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-60",
+      "diasAtras": 43,
+      "tema": "agendado-nao-feito",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-61",
+      "diasAtras": 43,
+      "tema": "pix-pessoa-errada",
+      "peso": 48,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-61",
+      "diasAtras": 42,
+      "tema": "aumentar-limite",
+      "peso": 21,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-60",
+      "diasAtras": 42,
+      "tema": "golpe-pix",
+      "peso": 7,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-golpe-pix-71",
+      "diasAtras": 41,
+      "tema": "golpe-pix",
+      "peso": 51,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-70",
+      "diasAtras": 40,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-71",
+      "diasAtras": 40,
+      "tema": "devolucao-demora",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-70",
+      "diasAtras": 39,
+      "tema": "golpe-pix",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-71",
+      "diasAtras": 39,
+      "tema": "pix-pessoa-errada",
+      "peso": 53,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-70",
+      "diasAtras": 38,
+      "tema": "agendado-nao-feito",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-70",
+      "diasAtras": 38,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-70",
+      "diasAtras": 37,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-70",
+      "diasAtras": 37,
+      "tema": "pix-pessoa-errada",
+      "peso": 20,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-71",
+      "diasAtras": 36,
+      "tema": "agendado-nao-feito",
+      "peso": 35,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-71",
+      "diasAtras": 35,
+      "tema": "aumentar-limite",
+      "peso": 19,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-71",
+      "diasAtras": 35,
+      "tema": "chave-outro-banco",
+      "peso": 15,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-geral-7",
+      "diasAtras": 35,
+      "tema": null,
+      "peso": 236,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-80",
+      "diasAtras": 33,
+      "tema": "agendado-nao-feito",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-81",
+      "diasAtras": 33,
+      "tema": "chave-outro-banco",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-81",
+      "diasAtras": 33,
+      "tema": "devolucao-demora",
+      "peso": 9,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-geral-8",
+      "diasAtras": 32,
+      "tema": null,
+      "peso": 255,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-80",
+      "diasAtras": 32,
+      "tema": "golpe-pix",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-80",
+      "diasAtras": 32,
+      "tema": "pix-pessoa-errada",
+      "peso": 21,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-81",
+      "diasAtras": 31,
+      "tema": "aumentar-limite",
+      "peso": 21,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-81",
+      "diasAtras": 30,
+      "tema": "golpe-pix",
+      "peso": 50,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-81",
+      "diasAtras": 30,
+      "tema": "pix-pessoa-errada",
+      "peso": 55,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-80",
+      "diasAtras": 29,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-81",
+      "diasAtras": 28,
+      "tema": "agendado-nao-feito",
+      "peso": 32,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-80",
+      "diasAtras": 28,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-80",
+      "diasAtras": 28,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-91",
+      "diasAtras": 27,
+      "tema": "devolucao-demora",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-geral-9",
+      "diasAtras": 27,
+      "tema": null,
+      "peso": 275,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-90",
+      "diasAtras": 26,
+      "tema": "agendado-nao-feito",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-90",
+      "diasAtras": 25,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-golpe-pix-91",
+      "diasAtras": 25,
+      "tema": "golpe-pix",
+      "peso": 52,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-91",
+      "diasAtras": 25,
+      "tema": "pix-pessoa-errada",
+      "peso": 60,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-91",
+      "diasAtras": 24,
+      "tema": "agendado-nao-feito",
+      "peso": 32,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-90",
+      "diasAtras": 24,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-91",
+      "diasAtras": 24,
+      "tema": "chave-outro-banco",
+      "peso": 13,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-90",
+      "diasAtras": 23,
+      "tema": "golpe-pix",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-90",
+      "diasAtras": 23,
+      "tema": "pix-pessoa-errada",
+      "peso": 22,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-91",
+      "diasAtras": 22,
+      "tema": "aumentar-limite",
+      "peso": 22,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-90",
+      "diasAtras": 22,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-100",
+      "diasAtras": 20,
+      "tema": "agendado-nao-feito",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-golpe-pix-101",
+      "diasAtras": 20,
+      "tema": "golpe-pix",
+      "peso": 46,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-100",
+      "diasAtras": 20,
+      "tema": "pix-pessoa-errada",
+      "peso": 19,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-100",
+      "diasAtras": 19,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-101",
+      "diasAtras": 18,
+      "tema": "agendado-nao-feito",
+      "peso": 31,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-101",
+      "diasAtras": 18,
+      "tema": "chave-outro-banco",
+      "peso": 12,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-100",
+      "diasAtras": 18,
+      "tema": "golpe-pix",
+      "peso": 7,
+      "rechamada": true
+    },
+    {
+      "id": "VC-68930",
+      "diasAtras": 17,
+      "tema": "chave-outro-banco",
+      "peso": 1,
+      "rechamada": true,
+      "hora": "17:44",
+      "duracao": "5 min 33 s",
+      "trechos": [
+        {
+          "t": "00:41",
+          "quem": "Cliente",
+          "texto": "Diz que meu celular já é chave em outro banco. Eu nem uso mais aquele banco."
+        }
+      ]
+    },
+    {
+      "id": "VC-pix-aumentar-limite-100",
+      "diasAtras": 17,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-100",
+      "diasAtras": 16,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-101",
+      "diasAtras": 15,
+      "tema": "aumentar-limite",
+      "peso": 24,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-101",
+      "diasAtras": 15,
+      "tema": "pix-pessoa-errada",
+      "peso": 53,
+      "rechamada": false
+    },
+    {
+      "id": "VC-69120",
+      "diasAtras": 14,
+      "tema": "aumentar-limite",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "13:05",
+      "duracao": "3 min 58 s",
+      "trechos": [
+        {
+          "t": "00:18",
+          "quem": "Cliente",
+          "texto": "Preciso mandar oito mil hoje e o app não deixa. Como aumento?"
+        }
+      ]
+    },
+    {
+      "id": "VC-pix-devolucao-demora-101",
+      "diasAtras": 14,
+      "tema": "devolucao-demora",
+      "peso": 10,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-geral-10",
+      "diasAtras": 14,
+      "tema": null,
+      "peso": 265,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-111",
+      "diasAtras": 13,
+      "tema": "devolucao-demora",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-110",
+      "diasAtras": 13,
+      "tema": "pix-pessoa-errada",
+      "peso": 20,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-110",
+      "diasAtras": 12,
+      "tema": "agendado-nao-feito",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-110",
+      "diasAtras": 12,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-geral-11",
+      "diasAtras": 12,
+      "tema": null,
+      "peso": 253,
+      "rechamada": false
+    },
+    {
+      "id": "VC-69440",
+      "diasAtras": 11,
+      "tema": "agendado-nao-feito",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "10:40",
+      "duracao": "4 min 18 s",
+      "trechos": [
+        {
+          "t": "00:30",
+          "quem": "Cliente",
+          "texto": "O dono do imóvel disse que o Pix não caiu. Estava agendado."
+        }
+      ]
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-110",
+      "diasAtras": 11,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-111",
+      "diasAtras": 11,
+      "tema": "pix-pessoa-errada",
+      "peso": 55,
+      "rechamada": false
+    },
+    {
+      "id": "VC-69605",
+      "diasAtras": 9,
+      "tema": "devolucao-demora",
+      "peso": 1,
+      "rechamada": true,
+      "hora": "09:12",
+      "duracao": "4 min 47 s",
+      "trechos": [
+        {
+          "t": "00:26",
+          "quem": "Cliente",
+          "texto": "Pedi a devolução há cinco dias e ninguém me diz quando o dinheiro volta."
+        }
+      ]
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-111",
+      "diasAtras": 9,
+      "tema": "chave-outro-banco",
+      "peso": 14,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-110",
+      "diasAtras": 9,
+      "tema": "golpe-pix",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-devolucao-demora-110",
+      "diasAtras": 8,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-69871",
+      "diasAtras": 7,
+      "tema": "golpe-pix",
+      "peso": 1,
+      "rechamada": false,
+      "hora": "21:12",
+      "duracao": "9 min 02 s",
+      "trechos": [
+        {
+          "t": "00:22",
+          "quem": "Cliente",
+          "texto": "Me pediram um Pix dizendo que era do banco. Quero cancelar agora."
+        }
+      ]
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-111",
+      "diasAtras": 7,
+      "tema": "agendado-nao-feito",
+      "peso": 36,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-111",
+      "diasAtras": 7,
+      "tema": "aumentar-limite",
+      "peso": 20,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-111",
+      "diasAtras": 7,
+      "tema": "golpe-pix",
+      "peso": 48,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-121",
+      "diasAtras": 5,
+      "tema": "chave-outro-banco",
+      "peso": 14,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-120",
+      "diasAtras": 5,
+      "tema": "devolucao-demora",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-120",
+      "diasAtras": 5,
+      "tema": "pix-pessoa-errada",
+      "peso": 20,
+      "rechamada": true
+    },
+    {
+      "id": "VC-70110",
+      "diasAtras": 4,
+      "tema": "pix-pessoa-errada",
+      "peso": 1,
+      "rechamada": true,
+      "hora": "08:33",
+      "duracao": "6 min 20 s",
+      "trechos": [
+        {
+          "t": "00:15",
+          "quem": "Cliente",
+          "texto": "Colei a chave errada e o Pix foi. Como eu peço de volta?"
+        }
+      ]
+    },
+    {
+      "id": "VC-pix-geral-12",
+      "diasAtras": 4,
+      "tema": null,
+      "peso": 233,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-120",
+      "diasAtras": 3,
+      "tema": "agendado-nao-feito",
+      "peso": 4,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-chave-outro-banco-120",
+      "diasAtras": 3,
+      "tema": "chave-outro-banco",
+      "peso": 3,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-aumentar-limite-120",
+      "diasAtras": 2,
+      "tema": "aumentar-limite",
+      "peso": 2,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-golpe-pix-121",
+      "diasAtras": 2,
+      "tema": "golpe-pix",
+      "peso": 50,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-agendado-nao-feito-121",
+      "diasAtras": 1,
+      "tema": "agendado-nao-feito",
+      "peso": 36,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-aumentar-limite-121",
+      "diasAtras": 0,
+      "tema": "aumentar-limite",
+      "peso": 22,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-devolucao-demora-121",
+      "diasAtras": 0,
+      "tema": "devolucao-demora",
+      "peso": 11,
+      "rechamada": false
+    },
+    {
+      "id": "VC-pix-golpe-pix-120",
+      "diasAtras": 0,
+      "tema": "golpe-pix",
+      "peso": 8,
+      "rechamada": true
+    },
+    {
+      "id": "VC-pix-pix-pessoa-errada-121",
+      "diasAtras": 0,
+      "tema": "pix-pessoa-errada",
+      "peso": 55,
+      "rechamada": false
+    }
+  ]
+}
