@@ -146,7 +146,7 @@ describe('Dores', () => {
       ])
     ])
     const [cai, igual] = notes(column('Likert'))
-    expect(cai.querySelector('.hds-note-trend').getAttribute('data-trend')).toBe('down')
+    expect(cai.querySelector('.hds-note-trend')?.getAttribute('data-trend')).toBe('down')
     expect(cai.querySelector('.hds-note-trend')?.textContent).toBe('3%')
     expect(igual.querySelector('.hds-note-trend')?.textContent).toBe('estável')
   })

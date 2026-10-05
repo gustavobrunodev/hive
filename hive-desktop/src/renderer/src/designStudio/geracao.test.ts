@@ -227,7 +227,7 @@ describe('asking for a Relatório', () => {
     ['formato', 'O agente não entregou um Relatório de FullStory completo. Nada foi publicado.']
   ] as const)(
     'C15b: after a failure (%s), the place of the request goes back to "Gerar"',
-    async (motivo) => {
+    async (motivo, texto) => {
       const bridge = await open({ pagina: 'dores' })
       fireEvent.click(screen.getByRole('button', { name: 'Gerar Relatório de FullStory' }))
       await waitFor(() => expect(bridge.send).toHaveBeenCalled())
@@ -257,6 +257,8 @@ describe('asking for a Relatório', () => {
       expect(
         within(column).getByRole('button', { name: 'Gerar Relatório de FullStory' })
       ).toBeTruthy()
+      // …and the reason is on screen, beside it.
+      expect(await screen.findByText(texto)).toBeTruthy()
     }
   )
 
