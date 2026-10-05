@@ -1,0 +1,147 @@
+/* SourceNote — a Dor as a sticky note in its source's colour.
+   Fill and ink arrive inline from `--source-<fonte>-*`; everything else here
+   is shape. No colour of its own beyond the tokens. */
+.hds-note {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 132px;
+  width: 100%;
+  padding: 14px 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  box-shadow: var(--shadow-1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transform: rotate(var(--hds-note-tilt, 0deg));
+  transition:
+    transform 0.18s var(--ease-quart),
+    box-shadow 0.18s var(--ease-quart);
+}
+
+.hds-note:hover {
+  transform: rotate(0deg) translateY(-2px);
+  box-shadow: var(--shadow-2);
+}
+
+/* The fill swallows the app's ring, so the note draws one outside itself. */
+.hds-note:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  transform: rotate(0deg);
+}
+
+.hds-note[aria-pressed="true"] {
+  border-color: currentColor;
+  box-shadow: 0 0 0 1px currentColor, var(--shadow-2);
+}
+
+.hds-note-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.hds-note-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.hds-note-volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-basis: 100%;
+}
+
+.hds-note-icon {
+  display: inline-flex;
+}
+
+.hds-note-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* The seal: a ring in the ink, filled more as the impact rises — the word
+   carries the meaning, the fill only repeats it. */
+.hds-note-impact {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  border-radius: var(--rounded-full);
+  font-weight: 600;
+}
+
+.hds-note-impact::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid currentColor;
+  border-radius: var(--rounded-full);
+}
+
+.hds-note-impact[data-impact="alto"]::before {
+  background: currentColor;
+}
+
+.hds-note-impact[data-impact="medio"]::before {
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+
+.hds-note-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hds-note-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid currentColor;
+  border-radius: var(--rounded-full);
+  opacity: 0;
+}
+
+.hds-note-check[data-on] {
+  opacity: 1;
+}
+
+.hds-note-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hds-note,
+  .hds-note:hover {
+    transform: none;
+    transition: none;
+  }
+}

@@ -11161,7 +11161,7 @@ function SliderThumbProvider(props) {
   const isFormControl = thumb ? !!context.form || !!thumb.closest("form") : true;
   const value = context.values[index2];
   const resolvedName = name ?? (context.name ? context.name + (context.values.length > 1 ? "[]" : "") : void 0);
-  const percent = value === void 0 ? 0 : convertValueToPercentage(value, context.min, context.max);
+  const percent2 = value === void 0 ? 0 : convertValueToPercentage(value, context.min, context.max);
   React43.useEffect(() => {
     if (thumb) {
       context.thumbs.add(thumb);
@@ -11178,7 +11178,7 @@ function SliderThumbProvider(props) {
     index: index2,
     thumb,
     onThumbChange: setThumb,
-    percent,
+    percent: percent2,
     size: size4
   };
   return /* @__PURE__ */ jsx52(SliderThumbContextProvider, { scope: __scopeSlider, ...thumbContext, children: isFunction6(internal_do_not_use_render) ? internal_do_not_use_render(thumbContext) : children });
@@ -11190,21 +11190,21 @@ var SliderThumbTrigger = React43.forwardRef(
     const { __scopeSlider, ...thumbProps } = props;
     const context = useSliderContext(THUMB_TRIGGER_NAME, __scopeSlider);
     const orientation = useSliderOrientationContext(THUMB_TRIGGER_NAME, __scopeSlider);
-    const { index: index2, value, percent, size: size4, onThumbChange } = useSliderThumbContext(
+    const { index: index2, value, percent: percent2, size: size4, onThumbChange } = useSliderThumbContext(
       THUMB_TRIGGER_NAME,
       __scopeSlider
     );
     const composedRefs = useComposedRefs(forwardedRef, onThumbChange);
     const label = getLabel(index2, context.values.length);
     const orientationSize = size4?.[orientation.size];
-    const thumbInBoundsOffset = orientationSize ? getThumbInBoundsOffset(orientationSize, percent, orientation.direction) : 0;
+    const thumbInBoundsOffset = orientationSize ? getThumbInBoundsOffset(orientationSize, percent2, orientation.direction) : 0;
     return /* @__PURE__ */ jsx52(
       "span",
       {
         style: {
           transform: "var(--radix-slider-thumb-transform)",
           position: "absolute",
-          [orientation.startEdge]: `calc(${percent}% + ${thumbInBoundsOffset}px)`
+          [orientation.startEdge]: `calc(${percent2}% + ${thumbInBoundsOffset}px)`
         },
         children: /* @__PURE__ */ jsx52(Collection3.ItemSlot, { scope: __scopeSlider, children: /* @__PURE__ */ jsx52(
           Primitive.span,
@@ -21683,6 +21683,363 @@ function MessageToken({ kind, icon, className, children, ...rest }) {
     children
   ] });
 }
+
+// src/components/SourceNote/SourceNote.tsx
+import { forwardRef as forwardRef70 } from "react";
+import { jsx as jsx113, jsxs as jsxs73 } from "react/jsx-runtime";
+function TrendArrow({ trend }) {
+  const d = trend > 0 ? "M3 9l6-6M4.5 3H9v4.5" : trend < 0 ? "M3 3l6 6M9 4.5V9H4.5" : "M2.5 6h7";
+  return /* @__PURE__ */ jsx113("svg", { className: "hds-note-trend-glyph", viewBox: "0 0 12 12", width: "11", height: "11", "aria-hidden": "true", children: /* @__PURE__ */ jsx113("path", { d, fill: "none", stroke: "currentColor", strokeWidth: "1.6", strokeLinecap: "round", strokeLinejoin: "round" }) });
+}
+var SourceNote = forwardRef70(function SourceNote2({
+  fonte,
+  title,
+  volume,
+  icon,
+  impact,
+  impactLabel,
+  impactPrefix,
+  trend,
+  trendLabel,
+  pressed,
+  tilt = 0,
+  className,
+  style,
+  type = "button",
+  ...rest
+}, ref) {
+  const paint = {
+    background: `var(--source-${fonte}-bg)`,
+    color: `var(--source-${fonte}-ink)`,
+    "--hds-note-tilt": `${tilt}deg`,
+    ...style
+  };
+  return /* @__PURE__ */ jsxs73(
+    "button",
+    {
+      ref,
+      type,
+      className: cx("hds-note", className),
+      "data-fonte": fonte,
+      "aria-pressed": pressed,
+      style: paint,
+      ...rest,
+      children: [
+        pressed !== void 0 && /* @__PURE__ */ jsx113("span", { className: "hds-note-check", "data-on": pressed || void 0, "aria-hidden": "true", children: /* @__PURE__ */ jsx113("svg", { viewBox: "0 0 12 12", width: "10", height: "10", children: /* @__PURE__ */ jsx113("path", { d: "M2.5 6.2l2.3 2.3 4.7-5", fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round" }) }) }),
+        /* @__PURE__ */ jsx113("span", { className: "hds-note-title", children: title }),
+        /* @__PURE__ */ jsxs73("span", { className: "hds-note-foot", children: [
+          /* @__PURE__ */ jsxs73("span", { className: "hds-note-volume", children: [
+            icon && /* @__PURE__ */ jsx113("span", { className: "hds-note-icon", "aria-hidden": "true", children: icon }),
+            /* @__PURE__ */ jsx113("span", { children: volume })
+          ] }),
+          /* @__PURE__ */ jsxs73("span", { className: "hds-note-impact", "data-impact": impact, children: [
+            impactPrefix && /* @__PURE__ */ jsxs73("span", { className: "hds-note-sr", children: [
+              impactPrefix,
+              " "
+            ] }),
+            impactLabel
+          ] }),
+          /* @__PURE__ */ jsxs73("span", { className: "hds-note-trend", "data-trend": trend > 0 ? "up" : trend < 0 ? "down" : "flat", children: [
+            /* @__PURE__ */ jsx113(TrendArrow, { trend }),
+            trendLabel
+          ] })
+        ] })
+      ]
+    }
+  );
+});
+SourceNote.displayName = "SourceNote";
+
+// src/components/Chart/ChartFrame.tsx
+import { useId as useId7, useState as useState43 } from "react";
+import { jsx as jsx114, jsxs as jsxs74 } from "react/jsx-runtime";
+function TableGlyph({ table }) {
+  return table ? /* @__PURE__ */ jsx114("svg", { viewBox: "0 0 16 16", width: "14", height: "14", "aria-hidden": "true", children: /* @__PURE__ */ jsx114("path", { d: "M2.5 12.5l3.5-4 3 2.5 4.5-6", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }) : /* @__PURE__ */ jsx114("svg", { viewBox: "0 0 16 16", width: "14", height: "14", "aria-hidden": "true", children: /* @__PURE__ */ jsx114("path", { d: "M2.5 3.5h11v9h-11zM2.5 6.5h11M2.5 9.5h11M6.5 3.5v9", fill: "none", stroke: "currentColor", strokeWidth: "1.4", strokeLinejoin: "round" }) });
+}
+function ChartFrame({
+  title,
+  description,
+  headingLevel = 2,
+  toggle,
+  defaultTable = false,
+  className,
+  chart,
+  table
+}) {
+  const [asTable, setAsTable] = useState43(defaultTable);
+  const titleId = useId7();
+  const Heading = `h${headingLevel}`;
+  return /* @__PURE__ */ jsxs74("figure", { className: cx("hds-chart", className), "aria-labelledby": title ? titleId : void 0, children: [
+    /* @__PURE__ */ jsxs74("div", { className: "hds-chart-head", children: [
+      /* @__PURE__ */ jsxs74("div", { className: "hds-chart-titles", children: [
+        title && /* @__PURE__ */ jsx114(Heading, { id: titleId, className: "hds-chart-title", children: title }),
+        description && /* @__PURE__ */ jsx114("p", { className: "hds-chart-description", children: description })
+      ] }),
+      /* @__PURE__ */ jsxs74(
+        "button",
+        {
+          type: "button",
+          className: "hds-chart-toggle",
+          "aria-pressed": asTable,
+          onClick: () => setAsTable((value) => !value),
+          children: [
+            /* @__PURE__ */ jsx114(TableGlyph, { table: asTable }),
+            asTable ? toggle.showChart : toggle.showTable
+          ]
+        }
+      )
+    ] }),
+    asTable ? table : chart
+  ] });
+}
+function ChartTable({ columns, rows }) {
+  return /* @__PURE__ */ jsx114("div", { className: "hds-chart-table-wrap", children: /* @__PURE__ */ jsxs74("table", { className: "hds-chart-table", children: [
+    /* @__PURE__ */ jsx114("thead", { children: /* @__PURE__ */ jsx114("tr", { children: columns.map((column) => /* @__PURE__ */ jsx114("th", { scope: "col", className: cx(column.numeric && "hds-chart-num"), children: column.label }, column.label)) }) }),
+    /* @__PURE__ */ jsx114("tbody", { children: rows.map((row) => /* @__PURE__ */ jsx114("tr", { children: row.cells.map(
+      (cell, index2) => index2 === 0 ? /* @__PURE__ */ jsx114("th", { scope: "row", children: cell }, index2) : /* @__PURE__ */ jsx114("td", { className: cx(columns[index2]?.numeric && "hds-chart-num"), children: cell }, index2)
+    ) }, row.key)) })
+  ] }) });
+}
+
+// src/components/BarChart/BarChart.tsx
+import { Fragment as Fragment19, jsx as jsx115, jsxs as jsxs75 } from "react/jsx-runtime";
+var BAR_MAX_PERCENT = 74;
+function percent(value) {
+  return `${Number(value.toFixed(2))}%`;
+}
+function barWidth(value, max2) {
+  return max2 > 0 ? Math.max(0, value) / max2 * BAR_MAX_PERCENT : 0;
+}
+function BarChart({
+  data,
+  emphasis,
+  onEmphasisChange,
+  labels,
+  title,
+  description,
+  headingLevel,
+  defaultTable,
+  className
+}) {
+  const max2 = data.reduce((top, datum) => Math.max(top, datum.value), 0);
+  const valueText = (datum) => datum.valueLabel ?? String(datum.value);
+  const chart = /* @__PURE__ */ jsx115("div", { className: "hds-bars", children: data.map((datum) => {
+    const on = datum.id === emphasis;
+    const width = barWidth(datum.value, max2);
+    const part = on && datum.part !== void 0 && datum.value > 0 ? Math.min(Math.max(0, datum.part), datum.value) / datum.value * width : null;
+    return /* @__PURE__ */ jsxs75(
+      "button",
+      {
+        type: "button",
+        className: "hds-bars-row",
+        "aria-pressed": on,
+        "aria-label": datum.ariaLabel ?? `${datum.label}: ${valueText(datum)}${datum.shareLabel ? `, ${datum.shareLabel}` : ""}`,
+        "data-emphasis": on || void 0,
+        onClick: () => onEmphasisChange?.(datum.id),
+        children: [
+          /* @__PURE__ */ jsx115("span", { className: "hds-bars-label", children: datum.label }),
+          /* @__PURE__ */ jsxs75("span", { className: "hds-bars-track", children: [
+            part === null ? /* @__PURE__ */ jsx115("span", { className: "hds-bars-bar", style: { width: percent(width) } }) : /* @__PURE__ */ jsxs75(Fragment19, { children: [
+              /* @__PURE__ */ jsx115("span", { className: "hds-bars-bar hds-bars-part", style: { width: percent(part) } }),
+              /* @__PURE__ */ jsx115("span", { className: "hds-bars-bar hds-bars-rest", style: { width: percent(width - part) } })
+            ] }),
+            /* @__PURE__ */ jsxs75("span", { className: "hds-bars-value", children: [
+              valueText(datum),
+              datum.shareLabel && ` \xB7 ${datum.shareLabel}`
+            ] })
+          ] })
+        ]
+      },
+      datum.id
+    );
+  }) });
+  const table = /* @__PURE__ */ jsx115(
+    ChartTable,
+    {
+      columns: [{ label: labels.category }, { label: labels.value, numeric: true }, { label: labels.share, numeric: true }],
+      rows: data.map((datum) => ({
+        key: datum.id,
+        cells: [datum.label, valueText(datum), datum.shareLabel ?? ""]
+      }))
+    }
+  );
+  return /* @__PURE__ */ jsx115(
+    ChartFrame,
+    {
+      className,
+      title,
+      description,
+      headingLevel,
+      toggle: labels,
+      defaultTable,
+      chart,
+      table
+    }
+  );
+}
+
+// src/components/LineChart/LineChart.tsx
+import { useCallback as useCallback30, useEffect as useEffect42, useLayoutEffect as useLayoutEffect10, useRef as useRef53, useState as useState44 } from "react";
+import { Fragment as Fragment20, jsx as jsx116, jsxs as jsxs76 } from "react/jsx-runtime";
+var LINE_MARGIN = { left: 48, right: 56, top: 12, bottom: 28 };
+var LINE_FALLBACK_WIDTH = 560;
+function niceScale(max2) {
+  const raw = Math.max(1, max2) / 4;
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m2) => m2 * magnitude).find((candidate) => candidate >= raw);
+  return { step, top: Math.ceil(Math.max(1, max2) / step) * step };
+}
+function pointX(i, n, width) {
+  const plot = width - LINE_MARGIN.left - LINE_MARGIN.right;
+  return LINE_MARGIN.left + (n <= 1 ? plot / 2 : i / (n - 1) * plot);
+}
+function nearestPoint(x, n, width) {
+  const plot = width - LINE_MARGIN.left - LINE_MARGIN.right;
+  if (n <= 1 || plot <= 0) return 0;
+  return Math.max(0, Math.min(n - 1, Math.round((x - LINE_MARGIN.left) / plot * (n - 1))));
+}
+function useWidth() {
+  const ref = useRef53(null);
+  const [width, setWidth] = useState44(LINE_FALLBACK_WIDTH);
+  const measure = useCallback30(() => {
+    const measured = ref.current?.clientWidth ?? 0;
+    setWidth(measured > 0 ? measured : LINE_FALLBACK_WIDTH);
+  }, []);
+  useLayoutEffect10(measure, [measure]);
+  useEffect42(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [measure]);
+  return [ref, width];
+}
+function LineChart({
+  points,
+  seriesLabel,
+  ariaLabel,
+  labels,
+  reading = (point) => `${point.label}: ${point.valueLabel ?? point.value}`,
+  formatTick = (value) => String(value),
+  title,
+  description,
+  headingLevel,
+  defaultTable,
+  height = 236,
+  className
+}) {
+  const [boxRef, width] = useWidth();
+  const [selected, setSelected] = useState44(null);
+  const n = points.length;
+  const last = Math.max(0, n - 1);
+  const { step, top } = niceScale(points.reduce((max2, point) => Math.max(max2, point.value), 0));
+  const plotBottom = height - LINE_MARGIN.bottom;
+  const y = (value) => LINE_MARGIN.top + (plotBottom - LINE_MARGIN.top) * (1 - value / top);
+  const x = (i) => pointX(i, n, width);
+  const line = points.map((point, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(point.value).toFixed(1)}`).join(" ");
+  const area = n > 0 ? `${line} L${x(last).toFixed(1)} ${plotBottom} L${x(0).toFixed(1)} ${plotBottom} Z` : "";
+  const ticks = [];
+  for (let value = 0; value <= top + 1e-9; value += step) ticks.push(value);
+  const labelEvery = Math.max(1, Math.ceil(n / Math.max(2, Math.floor((width - LINE_MARGIN.left - LINE_MARGIN.right) / 56))));
+  const current = selected === null ? last : selected;
+  const shown = selected !== null ? points[selected] ?? null : null;
+  const currentPoint = points[current];
+  const lastPoint = points[last];
+  const onKeyDown = (event) => {
+    const moves = { ArrowRight: current + 1, ArrowLeft: current - 1, Home: 0, End: last };
+    const next = moves[event.key];
+    if (next === void 0 || n === 0) return;
+    event.preventDefault();
+    setSelected(Math.max(0, Math.min(last, next)));
+  };
+  const onMouseMove = (event) => {
+    if (n === 0) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    setSelected(nearestPoint(event.clientX - box.left, n, width));
+  };
+  const chart = /* @__PURE__ */ jsxs76("div", { className: "hds-line", ref: boxRef, children: [
+    /* @__PURE__ */ jsxs76(
+      "div",
+      {
+        className: "hds-line-plot",
+        role: "slider",
+        tabIndex: 0,
+        "aria-label": ariaLabel,
+        "aria-valuemin": 0,
+        "aria-valuemax": last,
+        "aria-valuenow": current,
+        "aria-valuetext": currentPoint ? reading(currentPoint) : void 0,
+        onFocus: () => setSelected((value) => value === null ? last : value),
+        onBlur: () => setSelected(null),
+        onKeyDown,
+        onMouseMove,
+        onMouseLeave: () => setSelected(null),
+        children: [
+          /* @__PURE__ */ jsxs76("svg", { width, height, viewBox: `0 0 ${width} ${height}`, "aria-hidden": "true", children: [
+            /* @__PURE__ */ jsx116("g", { className: "hds-line-axis-y", children: ticks.map((value) => /* @__PURE__ */ jsxs76("g", { children: [
+              /* @__PURE__ */ jsx116("line", { className: "hds-line-grid", x1: LINE_MARGIN.left, x2: width - LINE_MARGIN.right, y1: y(value), y2: y(value) }),
+              /* @__PURE__ */ jsx116("text", { className: "hds-line-tick", x: LINE_MARGIN.left - 8, y: y(value) + 4, textAnchor: "end", children: formatTick(value) })
+            ] }, value)) }),
+            /* @__PURE__ */ jsx116("g", { className: "hds-line-axis-x", children: points.map(
+              (point, i) => i % labelEvery === 0 ? /* @__PURE__ */ jsx116("text", { className: "hds-line-tick", x: x(i), y: height - 8, textAnchor: "middle", children: point.label }, point.label) : null
+            ) }),
+            /* @__PURE__ */ jsx116("path", { className: "hds-line-area", d: area }),
+            /* @__PURE__ */ jsx116("path", { className: "hds-line-path", d: line }),
+            lastPoint && /* @__PURE__ */ jsxs76(Fragment20, { children: [
+              /* @__PURE__ */ jsx116("circle", { className: "hds-line-end", cx: x(last), cy: y(lastPoint.value), r: 4 }),
+              /* @__PURE__ */ jsx116("text", { className: "hds-line-end-label", x: x(last) + 10, y: y(lastPoint.value) + 4, children: lastPoint.valueLabel ?? lastPoint.value })
+            ] }),
+            shown && selected !== null && /* @__PURE__ */ jsxs76(Fragment20, { children: [
+              /* @__PURE__ */ jsx116("line", { className: "hds-line-cursor", x1: x(selected), x2: x(selected), y1: LINE_MARGIN.top, y2: plotBottom }),
+              /* @__PURE__ */ jsx116("circle", { className: "hds-line-dot", cx: x(selected), cy: y(shown.value), r: 4.5 })
+            ] })
+          ] }),
+          shown && selected !== null && /* @__PURE__ */ jsxs76(
+            "div",
+            {
+              className: "hds-line-tip",
+              "data-side": x(selected) > width / 2 ? "left" : "right",
+              style: { left: `${x(selected)}px` },
+              children: [
+                /* @__PURE__ */ jsx116("span", { className: "hds-line-tip-label", children: shown.label }),
+                /* @__PURE__ */ jsxs76("span", { className: "hds-line-tip-value", children: [
+                  /* @__PURE__ */ jsx116("b", { children: shown.valueLabel ?? shown.value }),
+                  " ",
+                  seriesLabel
+                ] })
+              ]
+            }
+          )
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsx116("p", { className: "hds-chart-sr", "aria-live": "polite", children: shown ? reading(shown) : "" })
+  ] });
+  const table = /* @__PURE__ */ jsx116(
+    ChartTable,
+    {
+      columns: [{ label: labels.point }, { label: labels.value, numeric: true }],
+      rows: points.map((point) => ({
+        key: point.label,
+        cells: [point.label, point.valueLabel ?? String(point.value)]
+      }))
+    }
+  );
+  return /* @__PURE__ */ jsx116(
+    ChartFrame,
+    {
+      className,
+      title,
+      description,
+      headingLevel,
+      toggle: labels,
+      defaultTable,
+      chart,
+      table
+    }
+  );
+}
 export {
   Accordion2 as Accordion,
   AccordionContent2 as AccordionContent,
@@ -21699,7 +22056,9 @@ export {
   AlertDialogTrigger2 as AlertDialogTrigger,
   Attachment,
   Avatar2 as Avatar,
+  BAR_MAX_PERCENT,
   Badge,
+  BarChart,
   BrandMark,
   Breadcrumb,
   BreadcrumbItem,
@@ -21762,6 +22121,7 @@ export {
   Kbd,
   Label,
   LevelMeter,
+  LineChart,
   Logo,
   MessageList,
   MessageToken,
@@ -21814,6 +22174,7 @@ export {
   SkillGrid,
   SkillSpinePin,
   Slider2 as Slider,
+  SourceNote,
   SpineLabel,
   Spinner,
   Stack,

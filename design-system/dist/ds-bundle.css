@@ -100,6 +100,15 @@
   --shadow-1: 0 1px 2px oklch(0% 0 0 / 24%);
   --shadow-2: 0 4px 12px oklch(0% 0 0 / 32%);
   --shadow-3: 0 12px 32px oklch(0% 0 0 / 40%);
+  --source-likert: oklch(80% 0.11 90);
+  --source-likert-bg: oklch(33% 0.05 90);
+  --source-likert-ink: oklch(91% 0.07 95);
+  --source-voz: oklch(78% 0.1 45);
+  --source-voz-bg: oklch(33% 0.05 45);
+  --source-voz-ink: oklch(90% 0.05 50);
+  --source-fullstory: oklch(78% 0.09 165);
+  --source-fullstory-bg: oklch(32% 0.045 165);
+  --source-fullstory-ink: oklch(90% 0.05 165);
 }
 :root[data-theme=light] {
   --bg: var(--cinza-light);
@@ -139,6 +148,15 @@
   --shadow-1: 0 1px 2px oklch(19.5% 0.048 4.8 / 8%);
   --shadow-2: 0 4px 12px oklch(19.5% 0.048 4.8 / 10%);
   --shadow-3: 0 12px 32px oklch(19.5% 0.048 4.8 / 14%);
+  --source-likert: oklch(55% 0.11 80);
+  --source-likert-bg: oklch(94% 0.07 95);
+  --source-likert-ink: oklch(36% 0.07 80);
+  --source-voz: oklch(56% 0.13 40);
+  --source-voz-bg: oklch(92% 0.05 45);
+  --source-voz-ink: oklch(38% 0.09 40);
+  --source-fullstory: oklch(52% 0.1 165);
+  --source-fullstory-bg: oklch(93% 0.05 165);
+  --source-fullstory-ink: oklch(36% 0.07 165);
 }
 :root {
   --bg: var(--bordo);
@@ -178,6 +196,15 @@
   --shadow-1: 0 1px 2px oklch(0% 0 0 / 24%);
   --shadow-2: 0 4px 12px oklch(0% 0 0 / 32%);
   --shadow-3: 0 12px 32px oklch(0% 0 0 / 40%);
+  --source-likert: oklch(80% 0.11 90);
+  --source-likert-bg: oklch(33% 0.05 90);
+  --source-likert-ink: oklch(91% 0.07 95);
+  --source-voz: oklch(78% 0.1 45);
+  --source-voz-bg: oklch(33% 0.05 45);
+  --source-voz-ink: oklch(90% 0.05 50);
+  --source-fullstory: oklch(78% 0.09 165);
+  --source-fullstory-bg: oklch(32% 0.045 165);
+  --source-fullstory-ink: oklch(90% 0.05 165);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
@@ -218,6 +245,15 @@
     --shadow-1: 0 1px 2px oklch(19.5% 0.048 4.8 / 8%);
     --shadow-2: 0 4px 12px oklch(19.5% 0.048 4.8 / 10%);
     --shadow-3: 0 12px 32px oklch(19.5% 0.048 4.8 / 14%);
+    --source-likert: oklch(55% 0.11 80);
+    --source-likert-bg: oklch(94% 0.07 95);
+    --source-likert-ink: oklch(36% 0.07 80);
+    --source-voz: oklch(56% 0.13 40);
+    --source-voz-bg: oklch(92% 0.05 45);
+    --source-voz-ink: oklch(38% 0.09 40);
+    --source-fullstory: oklch(52% 0.1 165);
+    --source-fullstory-bg: oklch(93% 0.05 165);
+    --source-fullstory-ink: oklch(36% 0.07 165);
   }
 }
 :root {
@@ -6888,5 +6924,373 @@ button.hds-stage-row:focus-visible .hds-stage-cue {
 .hds-chat-message-user .hds-message-token-glyph {
   color: inherit;
   opacity: 0.75;
+}
+
+/* src/components/SourceNote/SourceNote.css */
+.hds-note {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 132px;
+  width: 100%;
+  padding: 14px 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-sm);
+  box-shadow: var(--shadow-1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transform: rotate(var(--hds-note-tilt, 0deg));
+  transition: transform 0.18s var(--ease-quart), box-shadow 0.18s var(--ease-quart);
+}
+.hds-note:hover {
+  transform: rotate(0deg) translateY(-2px);
+  box-shadow: var(--shadow-2);
+}
+.hds-note:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  transform: rotate(0deg);
+}
+.hds-note[aria-pressed=true] {
+  border-color: currentColor;
+  box-shadow: 0 0 0 1px currentColor, var(--shadow-2);
+}
+.hds-note-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.hds-note-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+.hds-note-volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-basis: 100%;
+}
+.hds-note-icon {
+  display: inline-flex;
+}
+.hds-note-icon svg {
+  width: 13px;
+  height: 13px;
+}
+.hds-note-impact {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  border-radius: var(--rounded-full);
+  font-weight: 600;
+}
+.hds-note-impact::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid currentColor;
+  border-radius: var(--rounded-full);
+}
+.hds-note-impact[data-impact=alto]::before {
+  background: currentColor;
+}
+.hds-note-impact[data-impact=medio]::before {
+  background:
+    linear-gradient(
+      90deg,
+      currentColor 50%,
+      transparent 50%);
+}
+.hds-note-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hds-note-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid currentColor;
+  border-radius: var(--rounded-full);
+  opacity: 0;
+}
+.hds-note-check[data-on] {
+  opacity: 1;
+}
+.hds-note-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hds-note,
+  .hds-note:hover {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* src/components/Chart/Chart.css */
+.hds-chart {
+  --hds-chart-emphasis: var(--accent);
+  --hds-chart-context: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+  margin: 0;
+}
+.hds-chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.hds-chart-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.hds-chart-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.hds-chart-description {
+  max-width: 52ch;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.hds-chart-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.hds-chart-toggle:hover {
+  background: var(--surface-2);
+}
+.hds-chart-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.hds-chart-table-wrap {
+  overflow-x: auto;
+}
+.hds-chart-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+.hds-chart-table th,
+.hds-chart-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.hds-chart-table thead th {
+  font-weight: 600;
+  color: var(--muted);
+}
+.hds-chart-table tbody th {
+  font-weight: 500;
+}
+.hds-chart-table .hds-chart-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.hds-chart-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* src/components/BarChart/BarChart.css */
+.hds-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hds-bars-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 34%) 1fr;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.hds-bars-row:hover {
+  background: var(--surface-2);
+}
+.hds-bars-row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.hds-bars-label {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hds-bars-row[data-emphasis] .hds-bars-label {
+  font-weight: 700;
+}
+.hds-bars-track {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.hds-bars-bar {
+  flex-shrink: 0;
+  height: 18px;
+  border-radius: var(--rounded-sm);
+  background: var(--hds-chart-context);
+}
+.hds-bars-row[data-emphasis] .hds-bars-bar {
+  background: var(--hds-chart-emphasis);
+}
+.hds-bars-row[data-emphasis] .hds-bars-rest {
+  background: color-mix(in oklab, var(--hds-chart-emphasis) 22%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--hds-chart-emphasis);
+}
+.hds-bars-value {
+  padding-left: 6px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+/* src/components/LineChart/LineChart.css */
+.hds-line {
+  position: relative;
+  min-width: 0;
+}
+.hds-line-plot {
+  position: relative;
+  border-radius: var(--rounded-md);
+  cursor: crosshair;
+}
+.hds-line-plot:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.hds-line-plot svg {
+  display: block;
+  overflow: visible;
+}
+.hds-line-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.hds-line-tick {
+  fill: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.hds-line-area {
+  fill: color-mix(in oklab, var(--hds-chart-emphasis) 14%, transparent);
+}
+.hds-line-path {
+  fill: none;
+  stroke: var(--hds-chart-emphasis);
+  stroke-width: 2.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.hds-line-end,
+.hds-line-dot {
+  fill: var(--hds-chart-emphasis);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+.hds-line-end-label {
+  fill: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hds-line-cursor {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.hds-line-tip {
+  position: absolute;
+  top: 10px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 132px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  font-size: 0.75rem;
+  color: var(--ink);
+  pointer-events: none;
+  transform: translateX(12px);
+}
+.hds-line-tip[data-side=left] {
+  transform: translateX(calc(-100% - 12px));
+}
+.hds-line-tip-label {
+  font-weight: 600;
+  color: var(--muted);
+}
+.hds-line-tip-value b {
+  font-variant-numeric: tabular-nums;
 }
 /*# sourceMappingURL=ds-bundle.css.map */

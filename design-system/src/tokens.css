@@ -149,6 +149,23 @@
   --shadow-1: 0 1px 2px oklch(0% 0 0 / 24%);
   --shadow-2: 0 4px 12px oklch(0% 0 0 / 32%);
   --shadow-3: 0 12px 32px oklch(0% 0 0 / 40%);
+
+  /* Fonte colours (Design Studio): one categorical hue per data source —
+     Likert, Voz do Cliente, FullStory — so a note, a column and a chip say
+     where a Dor came from before anything is read. Categorical on purpose,
+     never status: a note also carries an impact seal (Alto, Médio, Baixo), and
+     a status hue on the note would collide with it. Measured on the graphite
+     and bordo surfaces: ink on its fill 9.08–9.45:1, the hue on every surface
+     7.07–9.92:1. */
+  --source-likert: oklch(80% 0.11 90);
+  --source-likert-bg: oklch(33% 0.05 90);
+  --source-likert-ink: oklch(91% 0.07 95);
+  --source-voz: oklch(78% 0.1 45);
+  --source-voz-bg: oklch(33% 0.05 45);
+  --source-voz-ink: oklch(90% 0.05 50);
+  --source-fullstory: oklch(78% 0.09 165);
+  --source-fullstory-bg: oklch(32% 0.045 165);
+  --source-fullstory-ink: oklch(90% 0.05 165);
 }
 
 :root[data-theme="light"] {
@@ -214,6 +231,19 @@
   --shadow-1: 0 1px 2px oklch(19.5% 0.048 4.8 / 8%);
   --shadow-2: 0 4px 12px oklch(19.5% 0.048 4.8 / 10%);
   --shadow-3: 0 12px 32px oklch(19.5% 0.048 4.8 / 14%);
+
+  /* Fonte colours (Design Studio) — see the dark block. Butter, peach and mint
+     fills with an ink of the same hue: ink on its fill 8.03–9.29:1, the hue on
+     the light surfaces 4.33–5.21:1. */
+  --source-likert: oklch(55% 0.11 80);
+  --source-likert-bg: oklch(94% 0.07 95);
+  --source-likert-ink: oklch(36% 0.07 80);
+  --source-voz: oklch(56% 0.13 40);
+  --source-voz-bg: oklch(92% 0.05 45);
+  --source-voz-ink: oklch(38% 0.09 40);
+  --source-fullstory: oklch(52% 0.1 165);
+  --source-fullstory-bg: oklch(93% 0.05 165);
+  --source-fullstory-ink: oklch(36% 0.07 165);
 }
 
 /* Bare :root (no data-theme attribute) mirrors dark — today's markup
@@ -286,6 +316,23 @@
   --shadow-1: 0 1px 2px oklch(0% 0 0 / 24%);
   --shadow-2: 0 4px 12px oklch(0% 0 0 / 32%);
   --shadow-3: 0 12px 32px oklch(0% 0 0 / 40%);
+
+  /* Fonte colours (Design Studio): one categorical hue per data source —
+     Likert, Voz do Cliente, FullStory — so a note, a column and a chip say
+     where a Dor came from before anything is read. Categorical on purpose,
+     never status: a note also carries an impact seal (Alto, Médio, Baixo), and
+     a status hue on the note would collide with it. Measured on the graphite
+     and bordo surfaces: ink on its fill 9.08–9.45:1, the hue on every surface
+     7.07–9.92:1. */
+  --source-likert: oklch(80% 0.11 90);
+  --source-likert-bg: oklch(33% 0.05 90);
+  --source-likert-ink: oklch(91% 0.07 95);
+  --source-voz: oklch(78% 0.1 45);
+  --source-voz-bg: oklch(33% 0.05 45);
+  --source-voz-ink: oklch(90% 0.05 50);
+  --source-fullstory: oklch(78% 0.09 165);
+  --source-fullstory-bg: oklch(32% 0.045 165);
+  --source-fullstory-ink: oklch(90% 0.05 165);
 }
 
 /* No explicit data-theme attribute: follow the OS preference. Scoped so it
@@ -349,6 +396,19 @@
     --shadow-1: 0 1px 2px oklch(19.5% 0.048 4.8 / 8%);
     --shadow-2: 0 4px 12px oklch(19.5% 0.048 4.8 / 10%);
     --shadow-3: 0 12px 32px oklch(19.5% 0.048 4.8 / 14%);
+
+    /* Fonte colours (Design Studio) — see the dark block. Butter, peach and mint
+       fills with an ink of the same hue: ink on its fill 8.03–9.29:1, the hue on
+       the light surfaces 4.33–5.21:1. */
+    --source-likert: oklch(55% 0.11 80);
+    --source-likert-bg: oklch(94% 0.07 95);
+    --source-likert-ink: oklch(36% 0.07 80);
+    --source-voz: oklch(56% 0.13 40);
+    --source-voz-bg: oklch(92% 0.05 45);
+    --source-voz-ink: oklch(38% 0.09 40);
+    --source-fullstory: oklch(52% 0.1 165);
+    --source-fullstory-bg: oklch(93% 0.05 165);
+    --source-fullstory-ink: oklch(36% 0.07 165);
   }
 }
 
