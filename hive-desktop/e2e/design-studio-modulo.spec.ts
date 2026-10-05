@@ -11,12 +11,17 @@ import {
 import { openSidebar } from './fixtures/sidebar'
 import {
   activeDesignPage,
+  dataRoot,
   designRow,
   goToPage,
   openDesignStudio,
   seedHiveConversations,
-  seedModuleConversation
+  seedModuleConversation,
+  seedProduto,
+  skillRelatorioText,
+  todayLocal
 } from './fixtures/designStudio'
+import { armScriptedAgent } from './fixtures/scriptedAgent'
 
 /**
  * Design Studio — the module inside the Hive (task A), in the real Electron app.
@@ -170,6 +175,7 @@ test.describe('Design Studio — entrada e navegação do módulo', () => {
   }) => {
     seedModuleConversation(seeded, 'Câmbio', 'Por que o estorno não avisa o cliente?', 4)
     seedModuleConversation(seeded, 'Pix', 'Compare as três Fontes', 90)
+    seedProduto(seeded, 'Câmbio')
     const { app, window } = await launch(seeded)
     try {
       // The entry row: Enter and Space are the native button's, in the real app.
@@ -203,14 +209,72 @@ test.describe('Design Studio — entrada e navegação do módulo', () => {
       for (const scene of PAGE_SCENES) {
         await scene.go(window)
         await expect.poll(() => activeDesignPage(window)).toBe(scene.page)
-        await designRow(window).focus()
-        const sweep = await tabSweep(
-          window,
+        const region =
+          scene.region ??
           `.wb-work-layer[data-view="design"] [data-page="${scene.page}"][data-active]`
-        )
-        expect(sweep.reached, `${scene.page}: controls Tab never reached`).toEqual(sweep.expected)
-        expect(sweep.withoutIndicator, `${scene.page}: focus with no indicator`).toEqual([])
+        // A modal traps focus: the sweep starts inside it, never on the sidebar.
+        if (!scene.region) await designRow(window).focus()
+        const sweep = await tabSweep(window, region)
+        // Lote 1's frames (Início, Conversa) carry no control of their own yet.
+        if (!['inicio', 'conversa'].includes(scene.page)) {
+          expect(sweep.expected.length, `${scene.name}: nothing to reach`).toBeGreaterThan(0)
+        }
+        expect(sweep.reached, `${scene.name}: controls Tab never reached`).toEqual(sweep.expected)
+        expect(sweep.withoutIndicator, `${scene.name}: focus with no indicator`).toEqual([])
+        expect(
+          await inertKeyActivation(window, region),
+          `${scene.name}: a button ignored a key`
+        ).toEqual([])
+        await scene.leave?.(window)
       }
+
+      // The arrows: the segmented controls move their selection, and the
+      // weekly line steps week by week (Home and End to its ends).
+      await goToPage(window, 'Dores')
+      const produto = window.getByRole('radiogroup', { name: 'Produto' })
+      await produto.getByRole('radio', { name: 'Câmbio' }).focus()
+      await window.keyboard.press('ArrowRight')
+      await expect(produto.getByRole('radio', { name: 'Extrato' })).toHaveAttribute(
+        'aria-checked',
+        'true'
+      )
+      await expect(produto.getByRole('radio', { name: 'Extrato' })).toBeFocused()
+      await window.keyboard.press('ArrowLeft')
+      await expect(produto.getByRole('radio', { name: 'Câmbio' })).toHaveAttribute(
+        'aria-checked',
+        'true'
+      )
+
+      await openLeitura(window, 'Likert', 'Câmbio')
+      const vistas = activeLayer(window).getByRole('radiogroup', { name: 'Visão do Relatório' })
+      // The Gráficos scene left this Relatório on its charts: back to the text first.
+      await vistas.getByRole('radio', { name: 'Leitura' }).click()
+      await vistas.getByRole('radio', { name: 'Leitura' }).focus()
+      await window.keyboard.press('ArrowRight')
+      await expect(vistas.getByRole('radio', { name: 'Gráficos' })).toHaveAttribute(
+        'aria-checked',
+        'true'
+      )
+      const periodo = activeLayer(window).getByRole('radiogroup', { name: 'Período' })
+      await periodo.getByRole('radio', { name: '90 dias' }).focus()
+      await window.keyboard.press('ArrowRight')
+      await expect(periodo.getByRole('radio', { name: '60 dias' })).toHaveAttribute(
+        'aria-checked',
+        'true'
+      )
+      await window.keyboard.press('ArrowLeft')
+
+      const linha = activeLayer(window).getByRole('slider')
+      await linha.focus()
+      const ultima = await linha.getAttribute('aria-valuetext')
+      await window.keyboard.press('ArrowLeft')
+      const penultima = await linha.getAttribute('aria-valuetext')
+      expect(penultima).not.toBe(ultima)
+      await expect(activeLayer(window).locator('.hds-chart-sr')).toHaveText(penultima as string)
+      await window.keyboard.press('Home')
+      expect(await linha.getAttribute('aria-valuenow')).toBe('0')
+      await window.keyboard.press('End')
+      expect(await linha.getAttribute('aria-valuetext')).toBe(ultima)
     } finally {
       await app.close()
     }
@@ -225,6 +289,7 @@ test.describe('Design Studio — entrada e navegação do módulo', () => {
     seeded
   }) => {
     seedModuleConversation(seeded, 'Câmbio', 'Por que o estorno não avisa o cliente?', 4)
+    seedProduto(seeded, 'Câmbio')
     const { app, window } = await launch(seeded)
     try {
       for (const theme of ['light', 'dark'] as const) {
@@ -234,8 +299,9 @@ test.describe('Design Studio — entrada e navegação do módulo', () => {
           await scene.go(window)
           await expect.poll(() => activeDesignPage(window)).toBe(scene.page)
           const report = await prototypeLeaks(window)
-          expect(report.scanned, `${theme}/${scene.page}: nothing was scanned`).toBeGreaterThan(20)
-          expect(report.leaks, `${theme}/${scene.page}`).toEqual([])
+          expect(report.scanned, `${theme}/${scene.name}: nothing was scanned`).toBeGreaterThan(20)
+          expect(report.leaks, `${theme}/${scene.name}`).toEqual([])
+          await scene.leave?.(window)
         }
       }
     } finally {
@@ -244,18 +310,124 @@ test.describe('Design Studio — entrada e navegação do módulo', () => {
   })
 })
 
-/** The module pages this lote can reach, and how. The Relatório page has no way in until lote 2's links. */
-const PAGE_SCENES: Array<{ page: string; go: (window: Page) => Promise<void> }> = [
-  { page: 'inicio', go: (window) => goToPage(window, 'Início') },
-  { page: 'dores', go: (window) => goToPage(window, 'Dores') },
-  { page: 'relatorios', go: (window) => goToPage(window, 'Relatórios') },
+/**
+ * The module pages and surfaces the scene tables sweep, and how to reach each.
+ * Lote 1 wrote the first four; lote 2 added Dores with its Relatórios in
+ * place, the folha da Dor (a modal: swept inside itself, closed on leaving),
+ * the Leitura and the Gráficos. Lote 3 adds the chat field and its menus.
+ */
+interface PageScene {
+  name: string
+  page: string
+  go: (window: Page) => Promise<void>
+  /** The region swept, when it is not the page's own layer (a modal portalled out of it). */
+  region?: string
+  leave?: (window: Page) => Promise<void>
+}
+
+const PAGE_SCENES: PageScene[] = [
+  { name: 'Início', page: 'inicio', go: (window) => goToPage(window, 'Início') },
   {
+    name: 'Dores',
+    page: 'dores',
+    go: async (window) => {
+      await goToPage(window, 'Dores')
+      await expect(activeLayer(window).locator('.hds-note').first()).toBeVisible()
+    }
+  },
+  {
+    name: 'folha da Dor',
+    page: 'dores',
+    region: '.ds-folha',
+    go: async (window) => {
+      await goToPage(window, 'Dores')
+      await activeLayer(window).locator('.hds-note').first().click()
+      await expect(window.getByRole('dialog')).toBeVisible()
+      // Sweep from the dialog's own first stop, as the focus trap leaves it.
+      await window.locator('.ds-folha .ds-icon-btn').focus()
+      await window.keyboard.press('Shift+Tab')
+    },
+    leave: async (window) => {
+      await window.keyboard.press('Escape')
+      await expect(window.getByRole('dialog')).toHaveCount(0)
+    }
+  },
+  { name: 'Relatórios', page: 'relatorios', go: (window) => goToPage(window, 'Relatórios') },
+  { name: 'Leitura', page: 'relatorio', go: (window) => openLeitura(window, 'Likert', 'Câmbio') },
+  {
+    name: 'Gráficos',
+    page: 'relatorio',
+    go: async (window) => {
+      await openLeitura(window, 'Likert', 'Câmbio')
+      await activeLayer(window).getByRole('radio', { name: 'Gráficos' }).click()
+      await expect(activeLayer(window).getByRole('slider')).toBeVisible()
+    }
+  },
+  {
+    name: 'Conversa',
     page: 'conversa',
     go: async (window) => {
       await window.locator('.ds-recente').first().click()
     }
   }
 ]
+
+/** The module page on screen. */
+function activeLayer(window: Page): ReturnType<Page['locator']> {
+  return window.locator('.wb-work-layer[data-view="design"] [data-page][data-active]')
+}
+
+/** Opens a Relatório's Leitura from Relatórios, the way a person does. */
+async function openLeitura(window: Page, fonte: string, produto: string): Promise<void> {
+  await goToPage(window, 'Relatórios')
+  await activeLayer(window)
+    .getByRole('button', { name: `Abrir o Relatório de ${fonte} de ${produto}` })
+    .click()
+  await expect.poll(() => activeDesignPage(window)).toBe('relatorio')
+  await expect(activeLayer(window).locator('.ds-leitura, .ds-graficos')).toBeVisible()
+}
+
+/**
+ * Each button in the region, focused and pressed with Enter, then Space,
+ * recording whether the browser turned the key into the button's click — with
+ * the click stopped at the button, so no page navigates or dialog opens in the
+ * middle of the sweep. Returns the ones that ignored a key.
+ */
+async function inertKeyActivation(window: Page, region: string): Promise<string[]> {
+  const buttons = window.locator(`${region} button:not(:disabled)`)
+  const count = await buttons.count()
+  const unanswered: string[] = []
+  for (let index = 0; index < count; index += 1) {
+    const button = buttons.nth(index)
+    if (!(await button.isVisible())) continue
+    const label = (
+      (await button.getAttribute('aria-label')) ??
+      (await button.textContent()) ??
+      ''
+    ).trim()
+    for (const key of ['Enter', 'Space']) {
+      await button.evaluate((el) => {
+        const w = window as unknown as { __clicked: boolean }
+        w.__clicked = false
+        el.addEventListener(
+          'click',
+          (event) => {
+            w.__clicked = true
+            event.stopPropagation()
+            event.preventDefault()
+          },
+          { once: true, capture: true }
+        )
+      })
+      await button.focus()
+      await window.keyboard.press(key)
+      if (!(await window.evaluate(() => (window as unknown as { __clicked: boolean }).__clicked))) {
+        unanswered.push(`${label} (${key})`)
+      }
+    }
+  }
+  return unanswered
+}
 
 /** Whether the focused element paints a focus indicator: an outline, or a ring drawn with box-shadow. */
 async function hasFocusIndicator(window: Page): Promise<boolean> {
@@ -291,7 +463,10 @@ async function tabSweep(
         rect.width > 0 &&
         rect.height > 0 &&
         style.visibility !== 'hidden' &&
-        !(el as HTMLButtonElement).disabled
+        !(el as HTMLButtonElement).disabled &&
+        // A roving group (the DS segmented control) has one Tab stop; its
+        // other options are reached with the arrows, asserted on their own.
+        el.getAttribute('tabindex') !== '-1'
       )
     })
     visible.forEach((el, index) => el.setAttribute('data-c7a', `${selector}#${index}`))
@@ -395,7 +570,9 @@ async function prototypeLeaks(window: Page): Promise<{ scanned: number; leaks: s
     ] as const
 
     const roots = Array.from(
-      document.querySelectorAll('.ds-nav, .wb-work-layer[data-view="design"]')
+      document.querySelectorAll(
+        '.ds-nav, .wb-work-layer[data-view="design"], .ds-folha, .ds-avisos'
+      )
     )
     const elements = roots.flatMap((root) => [root, ...Array.from(root.querySelectorAll('*'))])
     const leaks: string[] = []
@@ -423,3 +600,386 @@ async function prototypeLeaks(window: Page): Promise<{ scanned: number; leaks: s
     return { scanned, leaks }
   })
 }
+
+/** Sets the window's outer size, unmaximized — the layout checks are at 1440px. */
+async function sizeWindow(app: ElectronApplication, width: number, height: number): Promise<void> {
+  await app.evaluate(
+    ({ BrowserWindow }, size) => {
+      const main = BrowserWindow.getAllWindows()[0]
+      main.unmaximize()
+      main.setSize(size.width, size.height)
+    },
+    { width, height }
+  )
+}
+
+/** A rect, read off the page. */
+async function rectOf(locator: ReturnType<Page['locator']>): Promise<{
+  top: number
+  left: number
+  right: number
+  bottom: number
+  width: number
+  height: number
+}> {
+  return locator.evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    return {
+      top: r.top,
+      left: r.left,
+      right: r.right,
+      bottom: r.bottom,
+      width: r.width,
+      height: r.height
+    }
+  })
+}
+
+/** `a` precedes `b` in the document. */
+async function precedes(
+  a: ReturnType<Page['locator']>,
+  b: ReturnType<Page['locator']>
+): Promise<boolean> {
+  const handle = await b.elementHandle()
+  return a.evaluate(
+    (first, second) =>
+      (first.compareDocumentPosition(second as Node) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    handle
+  )
+}
+
+test.describe('Design Studio — Dados de dor e Relatórios (lote 2)', () => {
+  test('C13c: end to end, the stand-in agent writes the file — it lands in <raiz>/Extrato/relatorios/likert, and Dores and Relatórios show it', async ({
+    seeded
+  }) => {
+    const dia = todayLocal()
+    const texto = skillRelatorioText('Extrato', 'likert')
+    const agent = armScriptedAgent(seeded, {
+      sessionId: 'ds-relatorio',
+      chunks: ['Relatório gravado.'],
+      writes: [{ path: `relatorios/likert/.${dia}-90d.md.parcial`, content: texto }]
+    })
+    const app = await launchSeededApp(seeded, { env: agent.env })
+    const window = await app.firstWindow()
+    try {
+      await waitForWorkUI(window)
+      await openSidebar(window, 'chat')
+      await openDesignStudio(window)
+      await goToPage(window, 'Dores')
+      await activeLayer(window).getByRole('radio', { name: 'Extrato' }).click()
+      await activeLayer(window).getByRole('button', { name: 'Gerar Relatório de Likert' }).click()
+
+      await expect(window.getByText('Relatório de Likert pronto · 8 Dores ranqueadas')).toBeVisible(
+        {
+          timeout: 30_000
+        }
+      )
+      const pasta = path.join(dataRoot(seeded), 'Extrato', 'relatorios', 'likert')
+      expect(fs.readdirSync(pasta).filter((name) => !name.startsWith('.'))).toEqual([
+        `${dia}-90d.md`
+      ])
+      // The turn ran in the Produto's folder, from a prompt that named the skill.
+      const turno = agent.invocations().find((entry) => entry.kind === 'turn')
+      expect(turno?.cwd).toBe(path.join(dataRoot(seeded), 'Extrato'))
+      expect(turno?.prompt).toContain('relatorio-likert')
+
+      // Dores: the Likert column shows the file's notes.
+      const likert = activeLayer(window).getByRole('region', { name: 'Likert' })
+      await expect(likert.locator('.hds-note').first()).toContainText(
+        'Não consigo ver o histórico maior que 90 dias'
+      )
+      await expect(likert.locator('.hds-note')).toHaveCount(5)
+      // Relatórios: the file's highlight.
+      await goToPage(window, 'Relatórios')
+      await expect(
+        activeLayer(window)
+          .getByRole('region', { name: /^Extrato/ })
+          .getByText('31% das respostas com nota 1 ou 2')
+      ).toBeVisible()
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('C18e: at 1440px the title and the picker share the header, "Onde dói" sits between it and the columns, the three columns are side by side and each note grid has 2 tracks', async ({
+    seeded
+  }) => {
+    seedProduto(seeded, 'Câmbio')
+    const { app, window } = await launch(seeded)
+    try {
+      await sizeWindow(app, 1440, 900)
+      await openDesignStudio(window)
+      await goToPage(window, 'Dores')
+      const page = activeLayer(window)
+      const header = page.locator('header').first()
+      await expect(header.getByRole('heading', { level: 1, name: 'Dores de Câmbio' })).toBeVisible()
+      await expect(header.getByRole('radiogroup', { name: 'Produto' })).toBeVisible()
+      const title = await rectOf(header.getByRole('heading', { level: 1 }))
+      const picker = await rectOf(header.getByRole('radiogroup', { name: 'Produto' }))
+      expect(picker.left).toBeGreaterThan(title.right)
+
+      const onde = page.getByRole('group', { name: 'Onde dói: telas da jornada' })
+      const colunas = page.getByRole('group', { name: 'Dores por Fonte' })
+      expect(await precedes(header, onde)).toBe(true)
+      expect(await precedes(onde, colunas)).toBe(true)
+      expect((await rectOf(onde)).top).toBeGreaterThanOrEqual((await rectOf(header)).bottom)
+      expect((await rectOf(colunas)).top).toBeGreaterThanOrEqual((await rectOf(onde)).bottom)
+
+      const rects = await Promise.all(
+        ['Likert', 'Voz do Cliente', 'FullStory'].map((fonte) =>
+          rectOf(page.getByRole('region', { name: fonte }))
+        )
+      )
+      expect(new Set(rects.map((r) => Math.round(r.top))).size).toBe(1)
+      expect(rects[0].left).toBeLessThan(rects[1].left)
+      expect(rects[1].left).toBeLessThan(rects[2].left)
+      const tracks = await page
+        .locator('.ds-notas')
+        .evaluateAll((grids) =>
+          grids.map((g) => getComputedStyle(g).gridTemplateColumns.split(' ').length)
+        )
+      expect(tracks).toEqual([2, 2, 2])
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('C21f: the folha hugs the right edge at nearly full height; header → chips → facts on one line → summary → Evidências → "Na mesma tela"; the actions sit at its foot, outside the scroller', async ({
+    seeded
+  }) => {
+    seedProduto(seeded, 'Câmbio')
+    const { app, window } = await launch(seeded)
+    try {
+      await sizeWindow(app, 1440, 900)
+      await openDesignStudio(window)
+      await goToPage(window, 'Dores')
+      await activeLayer(window)
+        .getByRole('region', { name: 'Voz do Cliente' })
+        .locator('.hds-note')
+        .first()
+        .click()
+      const dialog = window.getByRole('dialog')
+      await expect(dialog).toBeVisible()
+      await window.waitForTimeout(400) // the slide-in settles
+      const viewport = await window.evaluate(() => ({ w: innerWidth, h: innerHeight }))
+      const box = await rectOf(dialog)
+      expect(viewport.w - box.right).toBeLessThanOrEqual(16)
+      expect(box.height).toBeGreaterThanOrEqual(viewport.h * 0.9)
+
+      const parts = [
+        dialog.locator('.ds-folha-cab'),
+        dialog.locator('.ds-folha-chips'),
+        dialog.locator('.ds-fatos'),
+        dialog.locator('.ds-folha-resumo'),
+        dialog.getByRole('region', { name: /^Evidências/ }),
+        dialog.getByRole('region', { name: /^Na mesma tela/ })
+      ]
+      for (let i = 1; i < parts.length; i += 1)
+        expect(await precedes(parts[i - 1], parts[i])).toBe(true)
+      await expect(
+        dialog.locator('.ds-folha-cab').getByRole('button', { name: 'Fechar' })
+      ).toBeVisible()
+      const fatos = await dialog
+        .locator('.ds-fato')
+        .evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)))
+      expect(fatos).toHaveLength(3)
+      expect(new Set(fatos).size).toBe(1)
+
+      const pe = dialog.locator('.ds-folha-pe')
+      const corpo = dialog.locator('.ds-folha-corpo')
+      expect(await corpo.evaluate((el) => getComputedStyle(el).overflowY)).toBe('auto')
+      expect(await pe.evaluate((el) => el.closest('.ds-folha-corpo') === null)).toBe(true)
+      await expect(pe.getByRole('button', { name: /Citar no chat/ })).toBeVisible()
+      await expect(pe.getByRole('button', { name: /Perguntar ao agente/ })).toBeVisible()
+      expect(Math.abs((await rectOf(pe)).bottom - box.bottom)).toBeLessThanOrEqual(1)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('C23: Esc or "Fechar" closes the folha and hands focus back to the note that opened it', async ({
+    seeded
+  }) => {
+    seedProduto(seeded, 'Câmbio')
+    const { app, window } = await launch(seeded)
+    try {
+      await openDesignStudio(window)
+      await goToPage(window, 'Dores')
+      const notes = activeLayer(window).locator('.hds-note')
+      for (const [how, index] of [
+        ['Esc', 0],
+        ['Fechar', 2]
+      ] as const) {
+        const nota = notes.nth(index)
+        await nota.focus()
+        await window.keyboard.press('Enter')
+        const dialog = window.getByRole('dialog')
+        await expect(dialog).toBeVisible()
+        if (how === 'Esc') await window.keyboard.press('Escape')
+        else await dialog.getByRole('button', { name: 'Fechar' }).click()
+        await expect(dialog).toHaveCount(0)
+        await expect(nota, `${how}: focus back on the note`).toBeFocused()
+      }
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('C25b: every narrative paragraph is at most as wide as 66 "0" in its own font', async ({
+    seeded
+  }) => {
+    seedProduto(seeded, 'Câmbio')
+    const { app, window } = await launch(seeded)
+    try {
+      await sizeWindow(app, 1920, 1080)
+      await openDesignStudio(window)
+      await openLeitura(window, 'Voz do Cliente', 'Câmbio')
+      const medidas = await activeLayer(window)
+        .locator('.ds-narrativa p')
+        .evaluateAll((paragraphs) =>
+          paragraphs.map((p) => {
+            const probe = document.createElement('span')
+            const style = getComputedStyle(p)
+            probe.style.font = style.font
+            probe.style.letterSpacing = style.letterSpacing
+            probe.style.position = 'absolute'
+            probe.style.whiteSpace = 'nowrap'
+            probe.textContent = '0'.repeat(66)
+            document.body.appendChild(probe)
+            const limite = probe.getBoundingClientRect().width
+            probe.remove()
+            return { largura: p.getBoundingClientRect().width, limite }
+          })
+        )
+      expect(medidas.length).toBeGreaterThanOrEqual(2)
+      for (const { largura, limite } of medidas) expect(largura).toBeLessThanOrEqual(limite + 0.5)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('C25d: at 1440px the narrative card and "Dores ranqueadas" sit side by side, "Como foi feito." closes the narrative card, and the switch and "Gerar de novo" sit in a bar between the header and the cards', async ({
+    seeded
+  }) => {
+    seedProduto(seeded, 'Câmbio')
+    const { app, window } = await launch(seeded)
+    try {
+      await sizeWindow(app, 1440, 900)
+      await openDesignStudio(window)
+      await openLeitura(window, 'Likert', 'Câmbio')
+      const page = activeLayer(window)
+      const texto = await rectOf(page.locator('.ds-leitura-texto'))
+      const ranking = await rectOf(page.locator('.ds-ranking'))
+      expect(Math.round(texto.top)).toBe(Math.round(ranking.top))
+      expect(texto.left).toBeLessThan(ranking.left)
+      expect(
+        await page.locator('.ds-leitura-texto').evaluate((card) => {
+          const metodo = card.querySelector('.ds-metodo')
+          const paragrafos = card.querySelectorAll('.ds-narrativa p')
+          const ultimo = paragrafos[paragrafos.length - 1]
+          return (
+            metodo !== null &&
+            card.lastElementChild === metodo &&
+            (ultimo.compareDocumentPosition(metodo) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+          )
+        })
+      ).toBe(true)
+      const barra = page.locator('.ds-relatorio-barra')
+      await expect(barra.getByRole('radiogroup', { name: 'Visão do Relatório' })).toBeVisible()
+      await expect(barra.getByRole('button', { name: /Gerar de novo/ })).toBeVisible()
+      const cab = await rectOf(page.locator('.ds-relatorio-cab'))
+      const bar = await rectOf(barra)
+      expect(bar.top).toBeGreaterThanOrEqual(cab.bottom)
+      expect(texto.top).toBeGreaterThanOrEqual(bar.bottom)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('C27b: the Gráficos summary has a computed max-width of 36em', async ({ seeded }) => {
+    seedProduto(seeded, 'Câmbio')
+    const { app, window } = await launch(seeded)
+    try {
+      await openDesignStudio(window)
+      await openLeitura(window, 'Likert', 'Câmbio')
+      await activeLayer(window).getByRole('radio', { name: 'Gráficos' }).click()
+      const { maxWidth, fontSize } = await activeLayer(window)
+        .locator('.ds-graf-resumo')
+        .evaluate((el) => ({
+          maxWidth: getComputedStyle(el).maxWidth,
+          fontSize: getComputedStyle(el).fontSize
+        }))
+      expect(parseFloat(maxWidth)).toBeCloseTo(36 * parseFloat(fontSize), 1)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('C27f: filters → summary → the two chart cards → insights; at 1440px bars left of line, insights below at full width', async ({
+    seeded
+  }) => {
+    seedProduto(seeded, 'Câmbio')
+    const { app, window } = await launch(seeded)
+    try {
+      await sizeWindow(app, 1440, 900)
+      await openDesignStudio(window)
+      await openLeitura(window, 'FullStory', 'Câmbio')
+      await activeLayer(window).getByRole('radio', { name: 'Gráficos' }).click()
+      const page = activeLayer(window)
+      const filtros = page.getByRole('group', { name: 'Filtros dos gráficos' })
+      const resumo = page.locator('.ds-graf-resumo')
+      const barras = page.locator('[data-chart="barras"]')
+      const linha = page.locator('[data-chart="linha"]')
+      const insights = page.getByRole('region', { name: 'Insights por categoria' })
+      for (const [a, b] of [
+        [filtros, resumo],
+        [resumo, barras],
+        [barras, linha],
+        [linha, insights]
+      ] as const) {
+        expect(await precedes(a, b)).toBe(true)
+      }
+      const rb = await rectOf(barras)
+      const rl = await rectOf(linha)
+      expect(Math.round(rb.top)).toBe(Math.round(rl.top))
+      expect(rb.left).toBeLessThan(rl.left)
+      const ri = await rectOf(insights)
+      const container = await rectOf(page.locator('.ds-graficos'))
+      expect(ri.top).toBeGreaterThanOrEqual(Math.max(rb.bottom, rl.bottom))
+      expect(Math.abs(ri.width - container.width)).toBeLessThanOrEqual(1)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('C30b: in both twin tables the numeric cells are right-aligned in tabular figures', async ({
+    seeded
+  }) => {
+    seedProduto(seeded, 'Câmbio')
+    const { app, window } = await launch(seeded)
+    try {
+      await openDesignStudio(window)
+      await openLeitura(window, 'Likert', 'Câmbio')
+      await activeLayer(window).getByRole('radio', { name: 'Gráficos' }).click()
+      const toggles = activeLayer(window).getByRole('button', { name: 'Ver tabela' })
+      await toggles.first().click()
+      await activeLayer(window).getByRole('button', { name: 'Ver tabela' }).click()
+      const tabelas = activeLayer(window).locator('table.hds-chart-table')
+      await expect(tabelas).toHaveCount(2)
+      const celulas = await tabelas.locator('.hds-chart-num').evaluateAll((cells) =>
+        cells.map((cell) => ({
+          align: getComputedStyle(cell).textAlign,
+          numeric: getComputedStyle(cell).fontVariantNumeric
+        }))
+      )
+      expect(celulas.length).toBeGreaterThan(10)
+      for (const celula of celulas)
+        expect(celula).toEqual({ align: 'right', numeric: 'tabular-nums' })
+      // The body cells are numbers.
+      const corpo = await tabelas.locator('tbody td.hds-chart-num').allTextContents()
+      for (const texto of corpo) expect(texto).toMatch(/^[\d.,%]+$/)
+    } finally {
+      await app.close()
+    }
+  })
+})

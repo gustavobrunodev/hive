@@ -1,5 +1,7 @@
+import { spawnSync } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { expect, type Page } from '@playwright/test'
 import type { SeededWorkspace } from './workspace'
@@ -121,4 +123,62 @@ export async function goToPage(
   name: 'Início' | 'Dores' | 'Relatórios'
 ): Promise<void> {
   await window.locator('.ds-nav').getByRole('button', { name, exact: true }).click()
+}
+
+/** The module's embedded resources, as the unpackaged app resolves them (Landing 6). */
+export const RESOURCES = path.join(__dirname, '..', '..', 'resources', 'design-studio')
+
+/** Today, `AAAA-MM-DD`, on the local calendar — the day the app names a Relatório by. */
+export function todayLocal(): string {
+  const now = new Date()
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`
+}
+
+/** Produto display name → the sample data's id. */
+const PRODUTO_ID: Record<string, string> = { Câmbio: 'cambio', Extrato: 'extrato', Pix: 'pix' }
+
+/**
+ * A Relatório's text, produced by the real skill script over the real sample
+ * data — what a generation leaves behind, minus the agent's narrative.
+ */
+export function skillRelatorioText(produto: string, fonte: 'likert' | 'voz' | 'fullstory'): string {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'hive-e2e-skill-'))
+  const out = path.join(cwd, 'relatorios', fonte, '.rascunho.md.parcial')
+  fs.mkdirSync(path.dirname(out), { recursive: true })
+  const result = spawnSync(
+    process.execPath,
+    [
+      path.join(RESOURCES, 'skills', `relatorio-${fonte}`, 'scripts', 'relatorio.mjs'),
+      '--dados',
+      path.join(RESOURCES, 'dados-de-exemplo', PRODUTO_ID[produto], `${fonte}.json`),
+      '--saida',
+      path.relative(cwd, out),
+      '--agente',
+      'Claude',
+      '--modelo',
+      'sonnet'
+    ],
+    { cwd, encoding: 'utf-8' }
+  )
+  if (result.status !== 0) throw new Error(`skill failed: ${result.stderr}`)
+  return fs.readFileSync(out, 'utf-8')
+}
+
+/** Writes a valid Relatório where the app reads it: `<raiz>/<Produto>/relatorios/<fonte>/<dia>-90d.md`. */
+export function seedRelatorio(
+  seeded: SeededWorkspace,
+  produto: string,
+  fonte: 'likert' | 'voz' | 'fullstory'
+): string {
+  const dir = path.join(dataRoot(seeded), produto, 'relatorios', fonte)
+  fs.mkdirSync(dir, { recursive: true })
+  const file = path.join(dir, `${todayLocal()}-90d.md`)
+  fs.writeFileSync(file, skillRelatorioText(produto, fonte), 'utf-8')
+  return file
+}
+
+/** All three Fontes of a Produto, seeded. */
+export function seedProduto(seeded: SeededWorkspace, produto: string): void {
+  for (const fonte of ['likert', 'voz', 'fullstory'] as const) seedRelatorio(seeded, produto, fonte)
 }
