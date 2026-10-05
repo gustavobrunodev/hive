@@ -4603,3 +4603,37 @@ montadas embaixo (`designStudio/ChatTabBody.tsx`).
   começando por Inter.** Sem Inter instalada (WSL, e Windows sem a fonte), os
   títulos caem em Helvetica/Arial e o corpo em Segoe/Ubuntu — vale para todo
   título do Hive, não só do módulo. Achado, não corrigido aqui.
+
+## Design Studio no Hive — lote 2: Dados de dor, Relatórios e o turno com escopo (2026-10-05)
+
+O módulo ganhou Dores, a folha da Dor, Relatórios, a Leitura e os Gráficos, e
+o harness ganhou o **turno com escopo** (`TurnOpts.scope`): pasta, leitura,
+escrita e comandos do turno, decididos por `decideScoped` sem cartão. A geração
+de um Relatório é do main (plano, progresso pelo arquivo `.progresso` da skill,
+publicação por `rename` só no `done` com arquivo válido); o renderer só chama
+`agent.send` e escuta o canal próprio `designStudio:geracao`.
+
+### Lições
+
+- **O `-p` do Claude aprova sem perguntar** o que `acceptEdits` cobre e o
+  comando que ele acha "só de leitura". No binário 2.1.226 a ordem é regras
+  `deny` → regras `ask` → aprovação automática → regras `allow`; um `ask` por
+  ferramenta, via `--settings <arquivo>`, faz tudo passar pelo prompt tool.
+- **`app.getAppPath()` é `out/main` quando o Electron sobe com o arquivo**
+  (o E2E): medido. A raiz do app, sem empacotar, é `join(__dirname, '../..')`.
+- **Uma assinatura de `agent.onEvent` por janela** (`activeAgentEventUnsubs`):
+  uma superfície nova que assine e cancele corta o fluxo do Chat. O módulo
+  escuta o próprio canal, e o fim do turno é observado pelo main.
+- **`ToastProvider` do DS monta o próprio viewport.** Quem compõe o seu passa
+  `viewport={false}`, senão o Radix põe os toasts no outro (o GitOpToast já
+  fazia; o passe visual achou os avisos por cima do botão flutuante).
+- **`SegmentedControl` não levava o foco junto com a seleção** — só o C7a com
+  setas de verdade achou. Corrigido no DS, com teste.
+- **Um dublê com `hang: true` segura o `app.close()`**: interrompa o turno
+  antes de fechar, senão o teste estoura o tempo e esconde a asserção real.
+- **`{' '}` em JSX reprova no `noInlineStrings`**: o separador vai para a
+  string do i18n (`" · 3 de 1.284…"`), que é também o que o leitor de tela lê.
+- **`react-refresh/only-export-components` vale para hooks e funções** num
+  `.tsx`: dados e regras do módulo moram em `.ts`.
+- **O `verify` passa o ESLint em `resources/`**: script Node embarcado precisa
+  do override de `scripts/`.
