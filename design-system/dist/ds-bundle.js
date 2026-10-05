@@ -20660,6 +20660,7 @@ function SegmentedControl({
     if (!target) return;
     event.preventDefault();
     onChange(target.id);
+    trackRef.current?.querySelectorAll(".hds-seg-item")[options.indexOf(target)]?.focus();
   };
   return /* @__PURE__ */ jsxs60(
     "div",

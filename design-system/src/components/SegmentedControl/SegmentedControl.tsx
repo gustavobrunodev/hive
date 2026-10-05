@@ -98,6 +98,12 @@ export function SegmentedControl({
     if (!target) return
     event.preventDefault()
     onChange(target.id)
+    // Focus follows the selection (the radio-group pattern): the segment just
+    // chosen becomes the group's one tab stop, and leaving focus on the old
+    // one would strand it on a `tabIndex={-1}` element.
+    trackRef.current
+      ?.querySelectorAll<HTMLButtonElement>(".hds-seg-item")
+      [options.indexOf(target)]?.focus()
   }
 
   return (

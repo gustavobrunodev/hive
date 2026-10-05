@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
@@ -86,6 +87,28 @@ describe("SegmentedControl", () => {
       onChange.mockClear()
       await userEvent.keyboard(key)
       expect(onChange).toHaveBeenCalledWith(to)
+    })
+
+    it("moves focus with the selection, so the chosen segment keeps the tab stop", async () => {
+      function Controlled() {
+        const [value, setValue] = useState("all")
+        return (
+          <SegmentedControl
+            options={[
+              { id: "all", label: "Todos" },
+              { id: "tools", label: "Ferramentas" },
+            ]}
+            value={value}
+            onChange={setValue}
+            ariaLabel="g"
+          />
+        )
+      }
+      render(<Controlled />)
+      await userEvent.click(screen.getByRole("radio", { name: "Todos" }))
+      await userEvent.keyboard("{ArrowRight}")
+      expect(screen.getByRole("radio", { name: "Ferramentas" })).toHaveFocus()
+      expect(screen.getByRole("radio", { name: "Ferramentas" })).toHaveAttribute("tabindex", "0")
     })
 
     it("wraps around both ends", async () => {
