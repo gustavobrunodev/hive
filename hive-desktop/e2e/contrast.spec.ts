@@ -6,7 +6,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { THEMES, type Theme } from '../src/renderer/src/ui/theme'
 import { openSidebar } from './fixtures/sidebar'
-import { goToPage, openDesignStudio, seedModuleConversation } from './fixtures/designStudio'
+import {
+  goToPage,
+  openDesignStudio,
+  seedModuleConversation,
+  seedProduto
+} from './fixtures/designStudio'
 
 /**
  * P0-010 (test-design-qa.md, risk R-05 — BUS, score 6).
@@ -1024,11 +1029,75 @@ const DS_THEMES = ['light', 'dark'] as const
 /** The module's two regions: its navigation in the sidebar, and its layer of the work area. */
 const DS_REGIONS = ['.ds-nav', '.wb-work-layer[data-view="design"]'] as const
 
-/** A module scene: how to get there with the navigation on screen. */
-const DS_SCENES: Array<{ name: string; go: (window: Page) => Promise<void> }> = [
+/** The module page on screen. */
+function dsLayer(window: Page): ReturnType<Page['locator']> {
+  return window.locator('.wb-work-layer[data-view="design"] [data-page][data-active]')
+}
+
+/** Opens a Relatório's Leitura from Relatórios, the way a person does. */
+async function dsOpenLeitura(window: Page, fonte: string): Promise<void> {
+  await goToPage(window, 'Relatórios')
+  await dsLayer(window)
+    .getByRole('button', { name: `Abrir o Relatório de ${fonte} de Câmbio` })
+    .click()
+  await expect(dsLayer(window).locator('.ds-leitura, .ds-graficos')).toBeVisible()
+  const leitura = dsLayer(window).getByRole('radio', { name: 'Leitura' })
+  if ((await leitura.getAttribute('aria-checked')) !== 'true') await leitura.click()
+}
+
+/**
+ * A module scene: how to get there with the navigation on screen. Lote 1 wrote
+ * the first four; lote 2 added Dores with its Relatórios, the folha da Dor (a
+ * modal portalled out of the work area: measured inside itself, with the
+ * module behind it hidden from the a11y tree), the Leitura and the Gráficos
+ * with both twin tables open.
+ */
+const DS_SCENES: Array<{
+  name: string
+  go: (window: Page) => Promise<void>
+  /** Regions measured instead of `DS_REGIONS` — a modal's own. */
+  regions?: string[]
+  leave?: (window: Page) => Promise<void>
+}> = [
   { name: 'Início', go: (window) => goToPage(window, 'Início') },
   { name: 'Dores', go: (window) => goToPage(window, 'Dores') },
+  {
+    name: 'folha da Dor',
+    regions: ['.ds-folha'],
+    go: async (window) => {
+      await goToPage(window, 'Dores')
+      await dsLayer(window)
+        .getByRole('region', { name: 'Voz do Cliente' })
+        .locator('.hds-note')
+        .first()
+        .click()
+      await expect(window.getByRole('dialog')).toBeVisible()
+    },
+    leave: async (window) => {
+      await window.keyboard.press('Escape')
+      await expect(window.getByRole('dialog')).toHaveCount(0)
+    }
+  },
   { name: 'Relatórios', go: (window) => goToPage(window, 'Relatórios') },
+  { name: 'Leitura', go: (window) => dsOpenLeitura(window, 'Likert') },
+  {
+    name: 'Gráficos',
+    go: async (window) => {
+      await dsOpenLeitura(window, 'FullStory')
+      await dsLayer(window).getByRole('radio', { name: 'Gráficos' }).click()
+      // Hover the line, so the tooltip's text is on screen too.
+      await dsLayer(window).getByRole('slider').hover()
+    }
+  },
+  {
+    name: 'Gráficos, tabelas',
+    go: async (window) => {
+      for (let i = 0; i < 2; i += 1) {
+        await dsLayer(window).getByRole('button', { name: 'Ver tabela' }).first().click()
+      }
+      await expect(dsLayer(window).locator('table.hds-chart-table')).toHaveCount(2)
+    }
+  },
   {
     name: 'Conversa',
     go: async (window) => {
@@ -1040,11 +1109,15 @@ const DS_SCENES: Array<{ name: string; go: (window: Page) => Promise<void> }> = 
 /** A module app on `theme`, with two recent conversations so "Recentes" has rows (and one can be open). */
 async function moduleApp(
   seeded: Parameters<typeof launchSeededApp>[0],
-  theme: (typeof DS_THEMES)[number]
+  theme: (typeof DS_THEMES)[number],
+  env: Record<string, string> = {}
 ): Promise<{ app: Awaited<ReturnType<typeof launchSeededApp>>; window: Page }> {
   seedModuleConversation(seeded, 'Câmbio', 'Por que o estorno não avisa o cliente?', 4)
   seedModuleConversation(seeded, 'Pix', 'Compare as três Fontes', 60 * 26)
-  const app = await launchSeededApp(seeded)
+  // Lote 2: every Fonte of Câmbio has a Relatório, so Dores, the folha,
+  // Relatórios, Leitura and Gráficos all have their text on screen.
+  seedProduto(seeded, 'Câmbio')
+  const app = await launchSeededApp(seeded, { env })
   const window = await app.firstWindow()
   await waitForWorkUI(window)
   await setTheme(window, theme)
@@ -1068,10 +1141,14 @@ for (const theme of DS_THEMES) {
       const samples: Sample[] = []
       for (const scene of DS_SCENES) {
         await scene.go(window)
-        for (const region of DS_REGIONS) {
+        for (const region of scene.regions ?? DS_REGIONS) {
           for (const sample of await sampleTextContrast(window, region)) {
             samples.push({ ...sample, label: `${scene.name} · ${sample.label}` })
           }
+        }
+        if (scene.leave) {
+          await scene.leave(window)
+          continue
         }
         // The same page with the navigation away: its header now carries the seal.
         await toggleSidebar(window)
@@ -1098,7 +1175,14 @@ for (const theme of DS_THEMES) {
         'ds-recente-title',
         'ds-recente-meta',
         'wb-nav-item-label',
-        'wb-sidebar-group-label'
+        'wb-sidebar-group-label',
+        // Lote 2's surfaces: a note in its Fonte's colour, the folha, the
+        // Relatórios list, the Leitura and the Gráficos.
+        'hds-note-title',
+        'ds-folha-titulo',
+        'ds-rel-produto-titulo',
+        'ds-destaque',
+        'ds-graf-resumo'
       ]) {
         expect(roles, `${theme}: no sample for ${role}\n${roles}`).toContain(role)
       }
@@ -1115,7 +1199,11 @@ for (const theme of DS_THEMES) {
   test(`C7c: Design Studio icons and state indicators reach 3:1 in the ${theme} theme`, async ({
     seeded
   }) => {
-    const { app, window } = await moduleApp(seeded, theme)
+    // Six scenes in one app: the default minute is not enough.
+    test.setTimeout(180_000)
+    // A generation that never ends, so its current step can be measured.
+    const agent = armScriptedAgent(seeded, { sessionId: 'ds-c7c', hang: true })
+    const { app, window } = await moduleApp(seeded, theme, agent.env)
     try {
       const measured: NonTextSample[] = []
       // Início: the entry row and the Início row are the current ones.
@@ -1131,6 +1219,57 @@ for (const theme of DS_THEMES) {
       // row + the open conversation's row.
       expect(kinds.filter((kind) => kind === 'indicator').length).toBe(4)
 
+      // Lote 2: control borders (fields, secondary buttons, the segmented
+      // track), and the state marks — aria-pressed, the checked segment, the
+      // current step of a generation, the chart's emphasis and the insight in
+      // focus — each against the paint around it.
+      const controls: ControlSample[] = []
+      await goToPage(window, 'Dores')
+      await dsLayer(window)
+        .getByRole('button', { name: /^Acompanhar:/ })
+        .click()
+      controls.push(...(await sampleControls(window, 'Dores', DORES_CONTROLS)))
+      await dsLayer(window).getByRole('button', { name: 'Ver todas' }).click()
+      await dsLayer(window).getByRole('radio', { name: 'Pix' }).click()
+      await dsLayer(window).getByRole('button', { name: 'Gerar Relatório de Likert' }).click()
+      await expect(dsLayer(window).locator('.ds-passo[aria-current="step"]')).toBeVisible()
+      controls.push(...(await sampleControls(window, 'Gerando', GERANDO_CONTROLS)))
+      await dsLayer(window).getByRole('radio', { name: 'Câmbio' }).click()
+      await dsLayer(window)
+        .getByRole('region', { name: 'Likert' })
+        .locator('.hds-note')
+        .first()
+        .click()
+      await expect(window.getByRole('dialog')).toBeVisible()
+      controls.push(...(await sampleControls(window, 'folha', FOLHA_CONTROLS)))
+      await window.keyboard.press('Escape')
+      await goToPage(window, 'Relatórios')
+      controls.push(...(await sampleControls(window, 'Relatórios', RELATORIOS_CONTROLS)))
+      await dsOpenLeitura(window, 'Likert')
+      controls.push(...(await sampleControls(window, 'Leitura', LEITURA_CONTROLS)))
+      await dsLayer(window).getByRole('radio', { name: 'Gráficos' }).click()
+      controls.push(...(await sampleControls(window, 'Gráficos', GRAFICOS_CONTROLS)))
+
+      const named = new Set(controls.map((sample) => sample.name))
+      for (const spec of [
+        ...DORES_CONTROLS,
+        ...GERANDO_CONTROLS,
+        ...FOLHA_CONTROLS,
+        ...RELATORIOS_CONTROLS,
+        ...LEITURA_CONTROLS,
+        ...GRAFICOS_CONTROLS
+      ]) {
+        expect(named, `${theme}: nothing measured for ${spec.name}`).toContain(spec.name)
+      }
+      measured.push(
+        ...controls.map((sample) => ({
+          kind: sample.kind === 'border' ? ('indicator' as const) : sample.kind,
+          label: `${sample.label} · ${sample.name}`,
+          color: sample.color,
+          background: sample.background
+        }))
+      )
+
       const failures = measured
         .map((sample) => ({ sample, ratio: checkContrast(sample.color, sample.background).ratio }))
         .filter(({ ratio }) => ratio === undefined || ratio < WCAG_AA_LARGE)
@@ -1143,6 +1282,8 @@ for (const theme of DS_THEMES) {
         `Design Studio non-text failures in ${theme}:\n${failures.join('\n')}`
       ).toEqual([])
     } finally {
+      // The hanging generation's process outlives a plain close: stop it first.
+      await window.evaluate(() => window.hive.agent.interrupt()).catch(() => {})
       await app.close()
     }
   })
@@ -1235,4 +1376,212 @@ async function sampleNonText(window: Page, scene: string): Promise<NonTextSample
       })
     ]
   }, scene)
+}
+
+/** A control or state mark the C7c sweep measures, and how its colour is read. */
+interface ControlSpec {
+  name: string
+  selector: string
+  kind: 'border' | 'indicator' | 'icon'
+  /** Which computed colour is the mark: its border, its fill, its stroke or its text colour. */
+  paint: 'border' | 'border-left' | 'background' | 'stroke' | 'color'
+}
+
+interface ControlSample {
+  name: string
+  kind: ControlSpec['kind']
+  label: string
+  color: string
+  background: string
+}
+
+const DORES_CONTROLS: ControlSpec[] = [
+  {
+    name: 'tela de "Onde dói" (borda)',
+    selector: '.ds-onde-tela:not(:disabled)',
+    kind: 'border',
+    paint: 'border'
+  },
+  {
+    name: 'tela escolhida (aria-pressed)',
+    selector: '.ds-onde-tela[aria-pressed="true"]',
+    kind: 'indicator',
+    paint: 'border'
+  },
+  {
+    name: 'tela mais quente',
+    selector: '.ds-onde-tela[data-hot] .ds-onde-n',
+    kind: 'indicator',
+    paint: 'background'
+  },
+  { name: 'segmentado (borda)', selector: '.hds-seg', kind: 'border', paint: 'border' },
+  { name: 'segmento marcado', selector: '.hds-seg-thumb', kind: 'indicator', paint: 'border' },
+  {
+    name: 'ícone da Fonte',
+    selector: '.ds-coluna-cab .ds-fonte-tile svg',
+    kind: 'icon',
+    paint: 'color'
+  }
+]
+
+const GERANDO_CONTROLS: ControlSpec[] = [
+  {
+    name: 'passo atual',
+    selector: '.ds-passo[aria-current="step"] .ds-passo-marca',
+    kind: 'indicator',
+    paint: 'border'
+  },
+  {
+    name: 'passo seguinte (borda)',
+    selector: '.ds-passo[data-estado="depois"] .ds-passo-marca',
+    kind: 'border',
+    paint: 'border'
+  }
+]
+
+const FOLHA_CONTROLS: ControlSpec[] = [
+  { name: 'Fechar (borda)', selector: '.ds-folha .ds-icon-btn', kind: 'border', paint: 'border' },
+  {
+    name: 'botão secundário da folha (borda)',
+    selector: '.ds-folha .ds-btn-sec',
+    kind: 'border',
+    paint: 'border'
+  },
+  {
+    name: 'nota da escala Likert',
+    selector: '.ds-folha .ds-escala i',
+    kind: 'icon',
+    paint: 'border'
+  }
+]
+
+const RELATORIOS_CONTROLS: ControlSpec[] = [
+  {
+    name: 'botão secundário (borda)',
+    selector: '.ds-page .ds-btn-sec',
+    kind: 'border',
+    paint: 'border'
+  },
+  {
+    name: 'botão primário (preenchimento)',
+    selector: '.ds-page .hds-btn-primary',
+    kind: 'border',
+    paint: 'background'
+  }
+]
+
+const LEITURA_CONTROLS: ControlSpec[] = [
+  { name: 'voltar (ícone)', selector: '.ds-voltar svg', kind: 'icon', paint: 'color' },
+  {
+    name: 'Gerar de novo (borda)',
+    selector: '.ds-relatorio-barra .ds-btn-sec',
+    kind: 'border',
+    paint: 'border'
+  },
+  {
+    name: 'selo de impacto',
+    selector: '.ds-ranking .ds-impacto',
+    kind: 'indicator',
+    paint: 'border'
+  }
+]
+
+const GRAFICOS_CONTROLS: ControlSpec[] = [
+  { name: '"Ver tabela" (borda)', selector: '.hds-chart-toggle', kind: 'border', paint: 'border' },
+  { name: 'filtro de Dor (borda)', selector: '.ds-graf-dor', kind: 'border', paint: 'border' },
+  {
+    name: 'barra em ênfase',
+    selector: '.hds-bars-row[data-emphasis] .hds-bars-bar',
+    kind: 'indicator',
+    paint: 'background'
+  },
+  {
+    name: 'barra em contexto',
+    selector: '.hds-bars-row:not([data-emphasis]) .hds-bars-bar',
+    kind: 'icon',
+    paint: 'background'
+  },
+  { name: 'linha em ênfase', selector: '.hds-line-path', kind: 'indicator', paint: 'stroke' },
+  {
+    name: 'insight em foco',
+    selector: '.ds-insight[aria-current="true"]',
+    kind: 'indicator',
+    paint: 'border-left'
+  }
+]
+
+/**
+ * Each visible element of each spec, its mark's colour against every
+ * background layer behind it (the element's own fill excluded: an edge is
+ * read against what is outside it), composited outermost first.
+ */
+async function sampleControls(
+  window: Page,
+  scene: string,
+  specs: ControlSpec[]
+): Promise<ControlSample[]> {
+  return window.evaluate(
+    ({ scene, specs }) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 1
+      canvas.height = 1
+      const ctx = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D
+      const paint = (layers: string[]): string => {
+        ctx.clearRect(0, 0, 1, 1)
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, 1, 1)
+        for (const layer of layers) {
+          ctx.fillStyle = layer
+          ctx.fillRect(0, 0, 1, 1)
+        }
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+        return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`
+      }
+      const behind = (element: Element): string[] => {
+        const layers: string[] = []
+        for (let node = element.parentElement; node; node = node.parentElement) {
+          const bg = getComputedStyle(node).backgroundColor
+          if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') continue
+          layers.unshift(bg)
+        }
+        return layers
+      }
+      const markOf = (element: Element, how: string): string => {
+        const style = getComputedStyle(element)
+        if (how === 'border') return style.borderTopColor
+        if (how === 'border-left') return style.borderLeftColor
+        if (how === 'background') return style.backgroundColor
+        if (how === 'stroke') return style.stroke
+        return style.color
+      }
+      const out: Array<{
+        name: string
+        kind: string
+        label: string
+        color: string
+        background: string
+      }> = []
+      for (const spec of specs) {
+        for (const element of Array.from(document.querySelectorAll(spec.selector))) {
+          const rect = element.getBoundingClientRect()
+          if (
+            rect.width === 0 ||
+            rect.height === 0 ||
+            getComputedStyle(element).visibility === 'hidden'
+          )
+            continue
+          const layers = behind(element)
+          out.push({
+            name: spec.name,
+            kind: spec.kind,
+            label: `${scene} · ${(element.textContent ?? '').trim().slice(0, 24)}`,
+            color: paint([...layers, markOf(element, spec.paint)]),
+            background: paint(layers)
+          })
+        }
+      }
+      return out
+    },
+    { scene, specs }
+  ) as Promise<ControlSample[]>
 }

@@ -418,9 +418,14 @@
 
 /* The DS segmented track and thumb are drawn in hairlines; in the module they
    are a control's edge and its "current" mark, so they take a 3:1 ink. */
-.ds-page .hds-seg,
-.ds-page .hds-seg-thumb {
+.ds-page .hds-seg {
   border-color: var(--faint);
+}
+
+/* The checked segment's edge is its "current" mark: it sits on the track's
+   own `--bg-2`, where `--faint` measured 2.95:1 in the light theme. */
+.ds-page .hds-seg-thumb {
+  border-color: var(--muted);
 }
 
 .ds-page .hds-seg-item[aria-checked='true'] {
@@ -489,7 +494,9 @@
   align-items: center;
   gap: 6px;
   padding: 2px 9px;
-  border: 1px solid var(--border-strong);
+  /* A seal is a state mark: its edge holds 3:1 on every level, "Baixo" too
+     (the hairline it had measured 1.71:1). */
+  border: 1px solid var(--muted);
   border-radius: var(--rounded-full);
   font-size: 0.75rem;
   font-weight: 600;
@@ -1387,9 +1394,13 @@
 }
 
 /* The category in focus: an accent bar on its leading edge, and the tint. */
+.ds-insight {
+  border-left: 3px solid transparent;
+}
+
 .ds-insight[aria-current='true'] {
+  border-left-color: var(--accent);
   background: var(--selected-bg);
-  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .ds-insight-lado h3 {
