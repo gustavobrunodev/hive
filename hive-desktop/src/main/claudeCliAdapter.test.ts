@@ -1,6 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, readFileSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { createFakeProcessRunner, type ProcessHandle, type ProcessRunner } from './processRunner'
-import { claudeShellBinding, createClaudeCliAdapter } from './claudeCliAdapter'
+import {
+  claudeShellBinding,
+  createClaudeCliAdapter,
+  SCOPED_SETTINGS,
+  scopedArgs,
+  writeScopedSettings
+} from './claudeCliAdapter'
 import { readMcpRoster } from './cliAdapterCore'
 import type { AgentAdapter, AgentEvent, ShellContext, TurnUsage } from './agentAdapter'
 import type { ShellInfo } from './shellCatalog'
@@ -1493,5 +1502,105 @@ describe('AWS session gate', () => {
     expect(runner.calls[0].args).toContain('--resume')
     expect(runner.calls[1].args).not.toContain('--resume')
     expect(events.map((event) => event.type)).toEqual(['token', 'done'])
+  })
+})
+
+/**
+ * Design Studio (decision 2, Landing 14): the flags of a scoped turn. Two
+ * things have to be true of them for "every permission question goes through
+ * `decideScoped`" to hold: nothing is approved by the CLI on its own (no
+ * `acceptEdits`, no read-only Bash auto-approval, no user `allow` rule), and
+ * every question that is asked reaches Hive's endpoint, carrying the scope.
+ */
+describe('ClaudeCliAdapter — a scoped (Design Studio) turn', () => {
+  const PRODUTO = '/home/marina/Documentos/Design Studio/Extrato'
+  const SCRIPT = '/opt/hive/design-studio/skills/relatorio-likert/scripts/relatorio.mjs'
+  const SCOPE = {
+    cwd: PRODUTO,
+    readRoots: ['/home/marina/Documentos/Design Studio', '/opt/hive/design-studio'],
+    writeRoots: [`${PRODUTO}/relatorios`],
+    commands: [`node "${SCRIPT}"`]
+  }
+
+  function scopedRun(scratchDir: string): {
+    args: string[]
+    cwd: string | undefined
+    registered: Array<[string | undefined, unknown]>
+  } {
+    const runner = createFakeProcessRunner()
+    runner.script({ code: 0 })
+    const registered: Array<[string | undefined, unknown]> = []
+    const adapter = createClaudeCliAdapter(runner, {
+      scratchDir,
+      permissionPrompt: {
+        promptToolName: 'mcp__hive_approvals__approve',
+        mcpConfig: (turnId, scope) => {
+          registered.push([turnId, scope])
+          return '/userData/mcp/hive-approvals-1.json'
+        }
+      }
+    })
+    adapter.startSession({ workspace: '/ws' }).send({ text: 'gere', turnId: 't1', scope: SCOPE })
+    return { args: runner.calls[0].args, cwd: runner.calls[0].opts?.cwd, registered }
+  }
+
+  it('C45d: runs in the Produto, asks about every tool through the endpoint, and confines Bash to the closed list', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hive-claude-escopo-'))
+    const { args, cwd, registered } = scopedRun(dir)
+
+    expect(cwd).toBe(PRODUTO)
+    // Nothing approved by the mode: acceptEdits would pass writes inside the
+    // working directory without asking anyone.
+    expect(args).not.toContain('acceptEdits')
+    expect(args[args.indexOf('--permission-mode') + 1]).toBe('default')
+    // Only the six tools exist; no web, no subagents, no notebooks.
+    expect(args[args.indexOf('--tools') + 1]).toBe('Bash,Read,Write,Edit,Glob,Grep')
+    // The user's own MCP servers stay out.
+    expect(args).toContain('--strict-mcp-config')
+    // The settings file: an `ask` rule for every tool — which is what beats the
+    // CLI's read-only Bash auto-approval and any `allow` rule of the user's.
+    const settingsPath = args[args.indexOf('--settings') + 1]
+    expect(settingsPath.startsWith(dir)).toBe(true)
+    expect(JSON.parse(readFileSync(settingsPath, 'utf-8'))).toEqual({
+      permissions: { ask: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'] }
+    })
+    // Every ask goes to Hive's endpoint, registered with this turn's scope —
+    // where `decideScoped` holds the closed list.
+    expect(args[args.indexOf('--permission-prompt-tool') + 1]).toBe('mcp__hive_approvals__approve')
+    expect(args[args.indexOf('--mcp-config') + 1]).toBe('/userData/mcp/hive-approvals-1.json')
+    expect(registered).toEqual([['t1', SCOPE]])
+    // No JSON, and no line break, in argv (AGENTS.md).
+    for (const arg of args) expect(arg).not.toMatch(/[{\n]/)
+  })
+
+  it('C45d: fails closed — without the settings file, Bash is not on the turn at all', () => {
+    // A FILE where the scratch directory should be: the settings cannot be written.
+    const base = mkdtempSync(join(tmpdir(), 'hive-claude-escopo-'))
+    const blocked = join(base, 'arquivo')
+    writeFileSync(blocked, 'x')
+    const { args } = scopedRun(blocked)
+    expect(args).not.toContain('--settings')
+    expect(args[args.indexOf('--tools') + 1]).toBe('Read,Write,Edit,Glob,Grep')
+  })
+
+  it('keeps the ordinary flags for a turn without scope', () => {
+    const runner = createFakeProcessRunner()
+    runner.script({ code: 0 })
+    createClaudeCliAdapter(runner).startSession({ workspace: '/ws' }).send({ text: 'oi' })
+    expect(runner.calls[0].args).toContain('acceptEdits')
+    expect(runner.calls[0].args).not.toContain('--tools')
+    expect(runner.calls[0].opts?.cwd).toBe('/ws')
+  })
+
+  it('omits the endpoint flags while the bridge is not listening (the CLI then refuses every ask)', () => {
+    const args = scopedArgs(SCOPE, 't', undefined, '/s.json')
+    expect(args).not.toContain('--permission-prompt-tool')
+    expect(args).toContain('--settings')
+  })
+
+  it('writes the settings into the scratch directory and answers their path', () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'hive-claude-escopo-')), 'novo')
+    const path = writeScopedSettings(dir) as string
+    expect(JSON.parse(readFileSync(path, 'utf-8'))).toEqual(SCOPED_SETTINGS)
   })
 })

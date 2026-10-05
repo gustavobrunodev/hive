@@ -58,8 +58,9 @@ export interface AgentService {
    * omitted), starting that session first if needed (so a `send` never fails
    * merely because `startSession` wasn't called for that agent yet). `resume`
    * (conversation memory), `freshSession` (whose conversation this is, for the
-   * live transports), `turnId` (background-turns) and `model`/`effort`
-   * (per-turn overrides) travel through unchanged.
+   * live transports), `turnId` (background-turns), `model`/`effort`
+   * (per-turn overrides) and `scope` (the turn's own folder and permissions,
+   * Design Studio decision 2) travel through unchanged.
    *
    * Note what the pool is keyed on: the **agent**, not the conversation. That
    * is right for a one-shot CLI, where the session object owns no state a
@@ -179,7 +180,9 @@ export function createAgentService(registry: AgentRegistry): AgentService {
         turnId: opts?.turnId,
         attachments: opts?.attachments,
         model: opts?.model,
-        effort: opts?.effort
+        effort: opts?.effort,
+        // Design Studio (decision 2): the turn's own folder and permissions.
+        scope: opts?.scope
       })
     },
     runWorkflow(cmd: WorkflowCommand, opts?: TurnOpts): void {
@@ -189,7 +192,8 @@ export function createAgentService(registry: AgentRegistry): AgentService {
         turnId: opts?.turnId,
         attachments: opts?.attachments,
         model: opts?.model,
-        effort: opts?.effort
+        effort: opts?.effort,
+        scope: opts?.scope
       })
     },
     interrupt(turnId?: string): void {

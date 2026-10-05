@@ -1039,6 +1039,9 @@ app.whenReady().then(() => {
       const turnId = agentEvent.turnId
       if (turnId === undefined) return
       turnAgents.delete(turnId)
+      // Design Studio (Landing 14): a finished turn asks nothing more, so the
+      // scope its prompts were answered by goes with it.
+      approvalService.forgetTurn(turnId)
       const ws = activeReviewTurns.get(turnId)
       if (!ws) return
       activeReviewTurns.delete(turnId)
@@ -1151,21 +1154,31 @@ app.whenReady().then(() => {
     }
   }
 
+  /**
+   * The Agent Change Review checkpoint, for the turns that work in the Hive's
+   * workspace. A scoped turn (Design Studio, decision 2) runs in a Produto's
+   * folder outside it, so it leaves no mark and no pending change in the
+   * Review (criterion 44) — the checkpoint would be a snapshot of a folder the
+   * turn never touches.
+   */
+  function beginTurn(turnId: string, opts?: RendererTurnOpts): void {
+    if (!opts?.scope) beginReviewTurn(turnId, opts?.conversationId)
+    rememberTurnAgent(turnId, opts?.agentId)
+  }
+
   ipcMain.handle('agent:send', async (_event, text: string, opts?: RendererTurnOpts) => {
     // Checkpoint before the turn spawns (ACR-R1.1). Synthesize a turnId when
     // the caller didn't supply one so the terminal event can be matched back;
     // pass it through to the agent so its events carry the same id.
     const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
-    beginReviewTurn(turnId, opts?.conversationId)
-    rememberTurnAgent(turnId, opts?.agentId)
+    beginTurn(turnId, opts)
     agentService.send(text, { ...withDescribedAttachments(opts), turnId })
   })
   ipcMain.handle(
     'agent:runWorkflow',
     async (_event, cmd: WorkflowCommand, opts?: RendererTurnOpts) => {
       const turnId = opts?.turnId ?? `review-turn-${++reviewTurnCounter}`
-      beginReviewTurn(turnId, opts?.conversationId)
-      rememberTurnAgent(turnId, opts?.agentId)
+      beginTurn(turnId, opts)
       agentService.runWorkflow(cmd, { ...withDescribedAttachments(opts), turnId })
     }
   )

@@ -1,13 +1,17 @@
-import { homedir } from 'os'
+import { mkdirSync, writeFileSync } from 'fs'
+import { homedir, tmpdir } from 'os'
+import { join } from 'path'
 import type { ProcessRunner } from './processRunner'
 import type {
   AgentAdapter,
   AgentAdapterDeps,
   AgentCapabilities,
   CapabilityContext,
+  PermissionPromptEndpoint,
   SessionOpts,
   ShellBinding,
-  ShellContext
+  ShellContext,
+  TurnScope
 } from './agentAdapter'
 import type { ShellInfo } from './shellCatalog'
 import { createCliAgentSession } from './cliAdapterCore'
@@ -244,6 +248,82 @@ function posixBinding(shell: ShellInfo, available: ShellInfo[]): ShellBinding {
 }
 
 /**
+ * The built-in tools a scoped (Design Studio) turn is given, and the only ones
+ * it may ask about. Everything else the CLI ships — the web, subagents,
+ * notebooks — is simply absent from the turn.
+ */
+export const SCOPED_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'] as const
+
+/**
+ * The settings a scoped turn loads (`--settings <file>`): an `ask` rule for
+ * every one of its tools.
+ *
+ * Why `ask`, measured in the shipped binary (2.1.226) rather than assumed: the
+ * Bash permission check runs deny rules, then **ask** rules, and only after
+ * them the auto-approval of commands it considers read-only ("Read-only
+ * command is allowed") and the user's own `allow` rules. In print mode an
+ * `ask` goes to `--permission-prompt-tool` — Hive's endpoint — so every call
+ * the turn makes reaches `decideScoped` and none is settled by the CLI alone.
+ */
+export const SCOPED_SETTINGS = { permissions: { ask: [...SCOPED_TOOLS] } }
+
+/** Filename of the scoped settings, under the adapter's scratch directory. */
+const SCOPED_SETTINGS_FILE = 'claude-escopo-design-studio.json'
+
+/**
+ * Writes the scoped settings and answers their **path** — a path, never the
+ * JSON itself, which a Windows argv would split (see `approvalService.ts`).
+ * `null` when the directory cannot be written; the caller then fails closed.
+ */
+export function writeScopedSettings(dir: string): string | null {
+  const path = join(dir, SCOPED_SETTINGS_FILE)
+  try {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(path, JSON.stringify(SCOPED_SETTINGS), 'utf-8')
+    return path
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The flags that confine a scoped turn (Design Studio, Landing 14), in place
+ * of `acceptEdits`, which would approve writes inside the working directory
+ * without asking anyone.
+ *
+ *  - `default` permission mode: nothing is approved by the mode itself;
+ *  - `--tools`: only the six tools above exist for this turn;
+ *  - `--strict-mcp-config`: the user's own MCP servers stay out — the only
+ *    server is the approval bridge;
+ *  - `--settings`: the `ask` rules that send every call to the bridge.
+ *
+ * Fails closed: without the settings file Bash is dropped from the tool list,
+ * so no command can be approved by the CLI's read-only rule behind the scope's
+ * back. Without the bridge (`mcpConfig` null) every `ask` is refused by the
+ * CLI itself.
+ */
+export function scopedArgs(
+  scope: TurnScope,
+  turnId: string | undefined,
+  prompt: PermissionPromptEndpoint | undefined,
+  settingsPath: string | null
+): string[] {
+  const tools = settingsPath ? SCOPED_TOOLS : SCOPED_TOOLS.filter((tool) => tool !== 'Bash')
+  const mcpConfig = prompt?.mcpConfig(turnId, scope) ?? null
+  return [
+    '--permission-mode',
+    'default',
+    '--tools',
+    tools.join(','),
+    '--strict-mcp-config',
+    ...(settingsPath ? ['--settings', settingsPath] : []),
+    ...(mcpConfig && prompt
+      ? ['--mcp-config', mcpConfig, '--permission-prompt-tool', prompt.promptToolName]
+      : [])
+  ]
+}
+
+/**
  * Creates the `ClaudeCliAdapter`. `processRunner` is injected
  * (constructor/factory-injection, matching `createConfigStore`/
  * `createWorkspaceService`) so this module is fully testable against
@@ -259,6 +339,14 @@ export function createClaudeCliAdapter(
   deps?: AgentAdapterDeps
 ): AgentAdapter {
   const prompt = deps?.permissionPrompt
+  // Written on the first scoped turn, then reused: the content never changes.
+  let scopedSettings: string | null | undefined
+  const scopedSettingsPath = (): string | null => {
+    if (scopedSettings === undefined) {
+      scopedSettings = writeScopedSettings(deps?.scratchDir ?? join(tmpdir(), 'hive-agent'))
+    }
+    return scopedSettings
+  }
   return {
     id: 'claude-cli',
     displayName: 'Claude CLI',
@@ -368,7 +456,22 @@ export function createClaudeCliAdapter(
         // no positional prompt, `-p` reads one from stdin and streams the same
         // `stream-json` it does for an inline one.
         promptOnStdin: true,
-        buildArgs: (_prompt, { model, effort, resume, turnId }) => {
+        buildArgs: (_prompt, { model, effort, resume, turnId, scope }) => {
+          // Design Studio (decision 2): a scoped turn trades the permission
+          // flags below for the ones that confine it.
+          if (scope) {
+            return [
+              '-p',
+              ...(model ? ['--model', model] : []),
+              ...(effort ? ['--effort', effort] : []),
+              ...scopedArgs(scope, turnId, prompt, scopedSettingsPath()),
+              '--output-format',
+              'stream-json',
+              '--include-partial-messages',
+              '--verbose',
+              ...(resume ? ['--resume', resume] : [])
+            ]
+          }
           // agent-approvals: only wire the prompt tool once the bridge is
           // actually listening — a config pointing at no port would fail the
           // whole turn, which is strictly worse than today's behavior.

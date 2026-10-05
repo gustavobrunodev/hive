@@ -1,10 +1,14 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { createDevinAcpSession } from './devinAcpSession'
+import {
+  acpPermissionOutcome,
+  acpPermissionRequest,
+  createDevinAcpSession
+} from './devinAcpSession'
 import { createAcpTestServer, type AcpTestServer } from './acpTestServer'
-import type { AgentEvent } from './agentAdapter'
+import type { AgentEvent, TurnScope } from './agentAdapter'
 
 /** Collects events until a terminal one arrives (or the cap is hit). */
 async function drain(events: AsyncIterable<AgentEvent>, max = 40): Promise<AgentEvent[]> {
@@ -669,5 +673,223 @@ describe('DevinAcpSession — one connection, one session per conversation', () 
       'sess-1',
       'sess-2'
     ])
+  })
+})
+
+/**
+ * Design Studio (decision 2, Landing 15): a scoped turn on the Devin
+ * connection. The connection stays one; the *session* belongs to a folder, so
+ * a turn for another folder opens its own — and while a scoped turn is being
+ * prompted, the agent's reads, writes and permission requests are answered by
+ * its scope, with nothing shown.
+ */
+describe('DevinAcpSession — a scoped (Design Studio) turn', () => {
+  function folders(): { ws: string; raiz: string; produto: string } {
+    const base = mkdtempSync(join(tmpdir(), 'hive-acp-escopo-'))
+    const ws = join(base, 'workspace')
+    const raiz = join(base, 'Design Studio')
+    const produto = join(raiz, 'Câmbio')
+    mkdirSync(ws, { recursive: true })
+    mkdirSync(join(produto, 'relatorios'), { recursive: true })
+    return { ws, raiz, produto }
+  }
+
+  function scopeOf(raiz: string, produto: string): TurnScope {
+    return {
+      cwd: produto,
+      readRoots: [raiz],
+      writeRoots: [join(produto, 'relatorios')],
+      commands: [`node "${join(raiz, 'skill.mjs')}"`]
+    }
+  }
+
+  it('C43b: a scoped turn opens its session in scope.cwd, and the next unscoped turn goes back to the workspace', async () => {
+    const { ws, raiz, produto } = folders()
+    let sessions = 0
+    const server = createAcpTestServer((method) => {
+      if (method === 'initialize') return { protocolVersion: 1 }
+      if (method === 'session/new') return { sessionId: `s${++sessions}` }
+      if (method === 'session/prompt') return { stopReason: 'end_turn' }
+      return {}
+    })
+    const session = createDevinAcpSession(server, { workspace: ws })
+
+    session.send({ text: 'gere', turnId: 'modulo', scope: scopeOf(raiz, produto) })
+    await drain(session.events)
+    session.send({ text: 'oi', turnId: 'hive' })
+    await drain(session.events)
+
+    const opened = server.received
+      .filter((message) => message.method === 'session/new')
+      .map((message) => (message.params as { cwd: string }).cwd)
+    expect(opened).toEqual([produto, ws])
+    // One connection for both: the folder is the session's, not the process's.
+    expect(server.received.filter((message) => message.method === 'initialize')).toHaveLength(1)
+  })
+
+  it('C43b: resuming a conversation from another folder loads it in the turn’s own folder', async () => {
+    const { ws, raiz, produto } = folders()
+    const server = createAcpTestServer((method) => {
+      if (method === 'initialize') return { protocolVersion: 1 }
+      if (method === 'session/new') return { sessionId: 'do-hive' }
+      if (method === 'session/prompt') return { stopReason: 'end_turn' }
+      return {}
+    })
+    const session = createDevinAcpSession(server, { workspace: ws })
+    session.send({ text: 'oi', turnId: 'hive' })
+    await drain(session.events)
+    session.send({
+      text: 'continue',
+      turnId: 'modulo',
+      resume: 'do-modulo',
+      scope: scopeOf(raiz, produto)
+    })
+    await drain(session.events)
+
+    const load = server.received.find((message) => message.method === 'session/load')
+    expect(load?.params).toMatchObject({ sessionId: 'do-modulo', cwd: produto })
+  })
+
+  it('C45c: reads and writes outside the scope fail untouched, and a permission request answers by decideScoped — with no approval event', async () => {
+    const { ws, raiz, produto } = folders()
+    const fora = join(ws, 'segredo.txt')
+    writeFileSync(fora, 'não leia')
+    const dentro = join(produto, 'relatorios', 'ok.md')
+    const escrita = join(ws, 'escrita-proibida.txt')
+    let promptId: number | undefined
+    const server = createAcpTestServer((method, _params, self) => {
+      if (method === 'initialize') return { protocolVersion: 1 }
+      if (method === 'session/new') return { sessionId: 's1' }
+      if (method === 'session/prompt') {
+        promptId = (self.received[self.received.length - 1].id as number) ?? undefined
+        const ask = (id: number, toolCall: Record<string, unknown>): void =>
+          self.emit({
+            jsonrpc: '2.0',
+            id,
+            method: 'session/request_permission',
+            params: {
+              sessionId: 's1',
+              toolCall,
+              options: [
+                { optionId: 'sim', name: 'Permitir', kind: 'allow_once' },
+                { optionId: 'sempre', name: 'Sempre', kind: 'allow_always' },
+                { optionId: 'nao', name: 'Negar', kind: 'reject_once' }
+              ]
+            }
+          })
+        self.emit({ jsonrpc: '2.0', id: 900, method: 'fs/read_text_file', params: { path: fora } })
+        self.emit({
+          jsonrpc: '2.0',
+          id: 901,
+          method: 'fs/write_text_file',
+          params: { path: escrita, content: 'x' }
+        })
+        self.emit({
+          jsonrpc: '2.0',
+          id: 902,
+          method: 'fs/write_text_file',
+          params: { path: dentro, content: 'permitido' }
+        })
+        ask(903, { kind: 'execute', rawInput: { command: 'rm -rf ~' } })
+        ask(904, { kind: 'execute', rawInput: { command: `node "${join(raiz, 'skill.mjs')}"` } })
+        ask(905, { kind: 'edit', locations: [{ path: join(produto, 'notas.md') }] })
+        return undefined // the turn ends only once every request was answered
+      }
+      return {}
+    })
+    const session = createDevinAcpSession(server, { workspace: ws })
+    session.send({ text: 'gere', turnId: 'modulo', scope: scopeOf(raiz, produto) })
+    await waitFor(() =>
+      [900, 901, 902, 903, 904, 905].every((id) =>
+        server.received.some((message) => message.id === id && !('method' in message))
+      )
+    )
+    server.emit({ jsonrpc: '2.0', id: promptId as number, result: { stopReason: 'end_turn' } })
+    const events = await drain(session.events)
+
+    const reply = (id: number): Record<string, unknown> | undefined =>
+      server.received.find((message) => message.id === id && !('method' in message))
+    expect(reply(900)).toHaveProperty('error')
+    expect(reply(901)).toHaveProperty('error')
+    expect(existsSync(escrita)).toBe(false)
+    expect(reply(902)).toMatchObject({ result: {} })
+    expect(readFileSync(dentro, 'utf-8')).toBe('permitido')
+    expect(reply(903)).toMatchObject({
+      result: { outcome: { outcome: 'selected', optionId: 'nao' } }
+    })
+    expect(reply(904)).toMatchObject({
+      result: { outcome: { outcome: 'selected', optionId: 'sim' } }
+    })
+    expect(reply(905)).toMatchObject({
+      result: { outcome: { outcome: 'selected', optionId: 'nao' } }
+    })
+    expect(events.some((event) => event.type === 'approval')).toBe(false)
+    expect(events[events.length - 1]).toEqual({ type: 'done', turnId: 'modulo' })
+  })
+
+  it('answers a turn without scope the way it always did', async () => {
+    const { ws } = folders()
+    const server = createAcpTestServer((method, _params, self) => {
+      if (method === 'initialize') return { protocolVersion: 1 }
+      if (method === 'session/new') return { sessionId: 's1' }
+      if (method === 'session/prompt') {
+        self.emit({
+          jsonrpc: '2.0',
+          id: 910,
+          method: 'session/request_permission',
+          params: { options: [{ optionId: 'primeira', kind: 'allow_once' }] }
+        })
+        return { stopReason: 'end_turn' }
+      }
+      return {}
+    })
+    const session = createDevinAcpSession(server, { workspace: ws })
+    session.send({ text: 'oi', turnId: 't' })
+    await drain(session.events)
+    await waitFor(() =>
+      server.received.some((message) => message.id === 910 && !('method' in message))
+    )
+    expect(server.received).toContainEqual({
+      jsonrpc: '2.0',
+      id: 910,
+      result: { outcome: { outcome: 'selected', optionId: 'primeira' } }
+    })
+  })
+
+  it('names a Produto folder that is gone instead of running elsewhere', async () => {
+    const { ws, raiz } = folders()
+    const session = createDevinAcpSession(scriptedDevin([]), { workspace: ws })
+    session.send({ text: 'gere', turnId: 'm', scope: scopeOf(raiz, join(raiz, 'Sumiu')) })
+    const events = await drain(session.events)
+    expect(events[0]).toMatchObject({ type: 'error', turnId: 'm' })
+  })
+})
+
+describe('the ACP permission vocabulary, in decideScoped words', () => {
+  it.each([
+    [{ toolCall: { kind: 'read', locations: [{ path: '/a' }] } }, { kind: 'read', path: '/a' }],
+    [{ toolCall: { kind: 'search', rawInput: {} } }, { kind: 'read', path: '/cwd' }],
+    [{ toolCall: { kind: 'edit', rawInput: { file_path: '/b' } } }, { kind: 'write', path: '/b' }],
+    [{ toolCall: { kind: 'delete', rawInput: { filePath: '/c' } } }, { kind: 'write', path: '/c' }],
+    [{ toolCall: { kind: 'move' } }, { kind: 'write', path: '' }],
+    [
+      { toolCall: { kind: 'execute', rawInput: { command: 'ls' } } },
+      { kind: 'command', command: 'ls' }
+    ],
+    [{ toolCall: { kind: 'execute' } }, { kind: 'command', command: '' }],
+    [{ toolCall: { kind: 'fetch' } }, { kind: 'other', tool: 'fetch' }],
+    [{ toolCall: { title: 'Pensar' } }, { kind: 'other', tool: 'Pensar' }],
+    [{}, { kind: 'other', tool: 'tool' }]
+  ])('%j', (params, expected) => {
+    expect(acpPermissionRequest(params, '/cwd')).toEqual(expected)
+  })
+
+  it('cancels when the agent offers no option that says the decision', () => {
+    expect(
+      acpPermissionOutcome({ options: [{ optionId: 'x', kind: 'allow_always' }] }, 'allow')
+    ).toEqual({
+      outcome: { outcome: 'cancelled' }
+    })
+    expect(acpPermissionOutcome({}, 'deny')).toEqual({ outcome: { outcome: 'cancelled' } })
   })
 })

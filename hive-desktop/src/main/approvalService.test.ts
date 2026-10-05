@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   approvalDetailFor,
   approvalRuleFor,
+  claudeToolRequest,
   createApprovalService,
   type ApprovalService
 } from './approvalService'
@@ -546,5 +547,133 @@ describe('ApprovalService — the MCP permission-prompt endpoint', () => {
       // A card can outlive its turn; answering it must be a no-op, not a throw.
       expect(() => service.respond('nope', { behavior: 'allow' })).not.toThrow()
     })
+  })
+})
+
+/**
+ * Design Studio (decision 2, Landing 14): a scoped turn's prompts are answered
+ * by its scope, over the same real HTTP endpoint the Claude CLI calls — and no
+ * card is ever raised for them.
+ */
+describe('ApprovalService — a scoped (Design Studio) turn', () => {
+  const CONFIG_DIR = mkdtempSync(join(tmpdir(), 'hive-approvals-scoped-'))
+  const PRODUTO = '/home/marina/Documentos/Design Studio/Câmbio'
+  const SCRIPT = '/opt/hive/design-studio/skills/relatorio-voz/scripts/relatorio.mjs'
+  const SCOPE = {
+    cwd: PRODUTO,
+    readRoots: ['/home/marina/Documentos/Design Studio', '/opt/hive/design-studio'],
+    writeRoots: [`${PRODUTO}/relatorios`],
+    commands: [`node "${SCRIPT}"`]
+  }
+
+  /** A scoped endpoint: the config is asked for *with* the scope, the way the adapter asks. */
+  function scopedRpc(service: ApprovalService, turnId: string, body: unknown): Promise<Response> {
+    const path = service.mcpConfig(turnId, SCOPE) as string
+    const config = JSON.parse(readFileSync(path, 'utf-8')) as {
+      mcpServers: Record<string, { url: string; headers: Record<string, string> }>
+    }
+    const server = config.mcpServers.hive_approvals
+    const headers = new Headers(server.headers)
+    headers.set('content-type', 'application/json')
+    return fetch(server.url, { method: 'POST', headers, body: JSON.stringify(body) })
+  }
+
+  it.each([
+    [
+      'allowed',
+      'Write',
+      { file_path: `${PRODUTO}/relatorios/voz/.2026-10-04-90d.md.parcial` },
+      'allow'
+    ],
+    ['allowed', 'Bash', { command: `node "${SCRIPT}" --dados a.json` }, 'allow'],
+    [
+      'allowed',
+      'Read',
+      { file_path: '/opt/hive/design-studio/skills/relatorio-voz/SKILL.md' },
+      'allow'
+    ],
+    ['denied', 'Write', { file_path: `${PRODUTO}/fora.md` }, 'deny'],
+    ['denied', 'Bash', { command: 'rm -rf ~' }, 'deny'],
+    ['denied', 'Read', { file_path: '/home/marina/.ssh/id_rsa' }, 'deny'],
+    ['denied', 'WebFetch', { url: 'https://example.com' }, 'deny']
+  ])(
+    'C45b: %s — %s answers by decideScoped, with no approval event',
+    async (_label, tool, input, behavior) => {
+      const service = createApprovalService({ configDir: CONFIG_DIR })
+      await service.listen()
+      const raised: ApprovalEvent[] = []
+      service.onRequest((request) => raised.push(request))
+      try {
+        const response = await scopedRpc(service, 'turno-modulo', CALL(tool, input))
+        expect(response.status).toBe(200)
+        expect((await verdictOf(response)).behavior).toBe(behavior)
+        expect(raised).toEqual([])
+      } finally {
+        await service.close()
+      }
+    }
+  )
+
+  it('C45b: neither a standing rule nor the session grant widens a scoped turn', async () => {
+    const service = createApprovalService({ configDir: CONFIG_DIR, rules: ['Bash:rm'] })
+    await service.listen()
+    service.setSessionAllowAll(true)
+    try {
+      const verdict = await verdictOf(
+        await scopedRpc(service, 'turno-modulo', CALL('Bash', { command: 'rm -rf ~' }))
+      )
+      expect(verdict.behavior).toBe('deny')
+    } finally {
+      await service.close()
+    }
+  })
+
+  it('goes back to the Hive flow for a turn whose scope was forgotten', async () => {
+    const service = createApprovalService({ configDir: CONFIG_DIR })
+    await service.listen()
+    try {
+      service.mcpConfig('turno', SCOPE)
+      service.forgetTurn('turno')
+      const pending = nextRequest(service)
+      const response = rpc(service, CALL('Bash', { command: 'rm -rf ~' }), { turnId: 'turno' })
+      const request = await pending
+      expect(request.turnId).toBe('turno')
+      service.respond(request.requestId, { behavior: 'deny' })
+      expect((await verdictOf(await response)).behavior).toBe('deny')
+    } finally {
+      await service.close()
+    }
+  })
+
+  it('registers nothing before it listens', () => {
+    const service = createApprovalService({ configDir: CONFIG_DIR })
+    expect(service.mcpConfig('turno', SCOPE)).toBeNull()
+  })
+})
+
+describe('claudeToolRequest — a Claude tool call in decideScoped words', () => {
+  const CWD = '/p'
+  it.each([
+    ['Bash', { command: 'ls' }, { kind: 'command', command: 'ls' }],
+    ['Bash', {}, { kind: 'command', command: '' }],
+    ['Read', { file_path: '/p/a' }, { kind: 'read', path: '/p/a' }],
+    ['Glob', { pattern: '**/*.md' }, { kind: 'read', path: CWD }],
+    ['Glob', { pattern: '**/*.md', path: '/q' }, { kind: 'read', path: '/q' }],
+    ['Glob', { pattern: '/etc/**/*.conf' }, { kind: 'read', path: '/etc' }],
+    ['Glob', { pattern: '/etc/passwd' }, { kind: 'read', path: '/etc' }],
+    ['Grep', { pattern: 'x' }, { kind: 'read', path: CWD }],
+    ['Grep', { pattern: 'x', path: '/q' }, { kind: 'read', path: '/q' }],
+    ['LS', { path: '/q' }, { kind: 'read', path: '/q' }],
+    ['Write', { file_path: '/p/b' }, { kind: 'write', path: '/p/b' }],
+    ['Edit', { file_path: '/p/b' }, { kind: 'write', path: '/p/b' }],
+    ['MultiEdit', {}, { kind: 'write', path: '' }],
+    ['NotebookEdit', { notebook_path: '/p/n.ipynb' }, { kind: 'write', path: '/p/n.ipynb' }],
+    ['Task', { prompt: 'x' }, { kind: 'other', tool: 'Task' }]
+  ])('%s %j', (tool, input, expected) => {
+    expect(claudeToolRequest(tool, input, CWD)).toEqual(expected)
+  })
+
+  it('reads no input at all as an empty request', () => {
+    expect(claudeToolRequest('Read', undefined, CWD)).toEqual({ kind: 'read', path: '' })
   })
 })

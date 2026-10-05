@@ -13,6 +13,7 @@ import {
   type McpServerStatus,
   type SessionOpts,
   type TurnOpts,
+  type TurnScope,
   type TurnUsage,
   type WorkflowCommand
 } from './agentAdapter'
@@ -37,6 +38,19 @@ import {
  * output verbatim instead of dropping it.
  */
 
+/**
+ * One turn as `buildArgs` sees it: the resolved model/effort, the session to
+ * resume, the caller's turn id, and — for a Design Studio turn — its scope
+ * (decision 2), which an adapter turns into the flags that confine it.
+ */
+export interface CliTurn {
+  model?: string
+  effort?: string
+  resume?: string | null
+  turnId?: string
+  scope?: TurnScope
+}
+
 /** Everything an adapter must supply to `createCliAgentSession` beyond the generic engine. */
 export interface CliAdapterConfig {
   /** The binary to spawn (`claude` / `copilot` / `devin`). */
@@ -57,10 +71,7 @@ export interface CliAdapterConfig {
    * (agent-approvals) stamps onto that tool's config so an approval raised by
    * this child routes back to the conversation that started it.
    */
-  buildArgs(
-    prompt: string,
-    turn: { model?: string; effort?: string; resume?: string | null; turnId?: string }
-  ): string[]
+  buildArgs(prompt: string, turn: CliTurn): string[]
   /**
    * Send the turn's prompt down the child's **stdin** instead of its argv.
    *
@@ -994,16 +1005,16 @@ export function createCliAgentSession(
 
   /** Spawns one attempt of a turn. Separate from `driveTurn` because a
    *  recoverable failure re-enters it with a different `resume`. */
-  function spawnAttempt(
-    prompt: string,
-    turn: { model?: string; effort?: string; resume?: string | null; turnId?: string }
-  ): ProcessHandle {
+  function spawnAttempt(prompt: string, turn: CliTurn): ProcessHandle {
     // `promptOnStdin`: the prompt leaves argv entirely and travels as the
     // child's whole stdin, because a Windows `.cmd` shim silently truncates a
     // command line at its first newline. See the field's own doc.
     const viaStdin = config.promptOnStdin === true
     return processRunner.run(config.command, config.buildArgs(viaStdin ? '' : prompt, turn), {
-      cwd: opts.workspace,
+      // Design Studio (decision 2): a scoped turn runs in its own folder —
+      // the Produto's — while every other turn keeps the session's workspace.
+      // Per spawn, so two turns of one session can run in two folders at once.
+      cwd: turn.scope?.cwd ?? opts.workspace,
       env: config.buildEnv?.(),
       ...(viaStdin ? { input: prompt } : {}),
       // agent-terminal (AT-R3): the agent's turn is the one spawn that runs
@@ -1038,7 +1049,7 @@ export function createCliAgentSession(
     run: TurnRun,
     handleKey: string,
     prompt: string,
-    turn: { model?: string; effort?: string; resume?: string | null; turnId?: string }
+    turn: CliTurn
   ): Promise<void> {
     try {
       if (config.preflight) {
@@ -1084,11 +1095,12 @@ export function createCliAgentSession(
     const effort = turnOpts?.effort ?? opts.effort
     const resume = turnOpts?.resume
     const turnId = turnOpts?.turnId
+    const scope = turnOpts?.scope
     anonymousTurnCounter += 1
     const handleKey = turnId ?? `anon-${anonymousTurnCounter}`
     const run: TurnRun = { handle: null, turnId, interrupted: false, settled: false }
     activeRuns.set(handleKey, run)
-    void driveTurn(run, handleKey, prompt, { model, effort, resume, turnId })
+    void driveTurn(run, handleKey, prompt, { model, effort, resume, turnId, scope })
   }
 
   /**

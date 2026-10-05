@@ -10,10 +10,12 @@ import {
   type AgentSession,
   type SessionOpts,
   type TurnOpts,
+  type TurnScope,
   type TurnUsage,
   type WorkflowCommand
 } from './agentAdapter'
 import { asRecord, asText } from './modelCatalog'
+import { decideScoped, type ScopedRequest } from './designStudio/turnScope'
 
 /**
  * Devin, driven as a **live session** over ACP instead of one process per
@@ -171,6 +173,70 @@ function toolDetail(update: SessionUpdate): string | undefined {
   return command ?? undefined
 }
 
+/**
+ * An ACP permission request, in the words `decideScoped` speaks (Landing 15).
+ * ACP names the act (`kind`) and, for file acts, where it lands (`locations`);
+ * a command travels in `rawInput.command`.
+ */
+export function acpPermissionRequest(params: unknown, cwd: string): ScopedRequest {
+  const call = asRecord(asRecord(params)?.toolCall)
+  const raw = asRecord(call?.rawInput)
+  const kind = asText(call?.kind) ?? ''
+  const path = acpCallPath(call, raw)
+  switch (ACP_KINDS[kind]) {
+    case 'read':
+      return { kind: 'read', path: path ?? cwd }
+    case 'write':
+      return { kind: 'write', path: path ?? '' }
+    case 'command':
+      return { kind: 'command', command: asText(raw?.command) ?? '' }
+    default:
+      return { kind: 'other', tool: kind || (asText(call?.title) ?? 'tool') }
+  }
+}
+
+/** ACP's tool kinds, by the act `decideScoped` judges them as. */
+const ACP_KINDS: Record<string, 'read' | 'write' | 'command'> = {
+  read: 'read',
+  search: 'read',
+  edit: 'write',
+  delete: 'write',
+  move: 'write',
+  execute: 'command'
+}
+
+/** Where a call lands: its first location, else a path in its raw input. */
+function acpCallPath(
+  call: Record<string, unknown> | null,
+  raw: Record<string, unknown> | null
+): string | null {
+  const located = asRecord(Array.isArray(call?.locations) ? call.locations[0] : null)
+  return (
+    asText(located?.path) ?? asText(raw?.path) ?? asText(raw?.file_path) ?? asText(raw?.filePath)
+  )
+}
+
+/**
+ * The option that carries a decision: ACP offers `allow_once`, `allow_always`,
+ * `reject_once`, `reject_always`. A scoped turn only ever answers *once* — a
+ * standing grant would outlive the turn's scope. No matching option means the
+ * agent offered no way to say it, and `cancelled` is the safe answer.
+ */
+export function acpPermissionOutcome(
+  params: unknown,
+  decision: 'allow' | 'deny'
+): { outcome: { outcome: 'selected'; optionId: string } | { outcome: 'cancelled' } } {
+  const wanted = decision === 'allow' ? 'allow_once' : 'reject_once'
+  const options = asRecord(params)?.options
+  const match = Array.isArray(options)
+    ? options.map((option) => asRecord(option)).find((option) => option?.kind === wanted)
+    : undefined
+  const optionId = asText(match?.optionId)
+  return optionId
+    ? { outcome: { outcome: 'selected', optionId } }
+    : { outcome: { outcome: 'cancelled' } }
+}
+
 export interface DevinAcpSessionOptions {
   /** The binary to run in ACP mode. Injected so tests can point at a script. */
   command?: string
@@ -196,6 +262,14 @@ export function createDevinAcpSession(
   let client: AcpClient | null = null
   /** Devin's own session id for the live connection. */
   let acpSessionId: string | null = null
+  /**
+   * The folder that session was opened in (Landing 15). A session belongs to
+   * one `cwd`: a scoped turn and a Hive turn on the same connection each need
+   * their own, so a turn that targets another folder never `keep`s it.
+   */
+  let sessionCwd: string | null = null
+  /** The scope of the turn being prompted, if it has one — what the handlers answer by. */
+  let activeScope: TurnScope | undefined
   /** The model currently in force on the connection, so we only set it on change. */
   let appliedModel: string | null = null
   /** The turn currently being prompted — every event is tagged with it. */
@@ -390,7 +464,26 @@ export function createDevinAcpSession(
     // and that is the case `session/load` exists for.
     if (resume !== null && resume !== acpSessionId) return 'load'
     if (acpSessionId === null) return 'new'
+    // Design Studio: the live session was opened in another folder — a module
+    // turn after a Hive one, or back. Keeping it would run this turn there.
+    if (sessionCwd !== turnCwd(turnOpts)) return resume !== null ? 'load' : 'new'
     return 'keep'
+  }
+
+  /** The folder a turn runs in: its scope's, or the session's workspace. */
+  function turnCwd(turnOpts: TurnOpts | undefined): string {
+    return turnOpts?.scope?.cwd ?? opts.workspace
+  }
+
+  /**
+   * Refuses a file act the scoped turn may not do. Throwing is the answer: the
+   * request fails back to the agent as an error, and nothing touched the disk.
+   */
+  function guardFile(kind: 'read' | 'write', path: string): void {
+    if (!activeScope) return
+    if (decideScoped(activeScope, { kind, path }) === 'deny') {
+      throw new Error(`Fora do que este turno pode ${kind === 'read' ? 'ler' : 'gravar'}: ${path}`)
+    }
   }
 
   /**
@@ -421,12 +514,14 @@ export function createDevinAcpSession(
     acp.onRequest('fs/read_text_file', async (params) => {
       const path = asText(asRecord(params)?.path)
       if (!path) throw new Error('fs/read_text_file sem path')
+      guardFile('read', path)
       return { content: await readFile(path, 'utf-8') }
     })
     acp.onRequest('fs/write_text_file', async (params) => {
       const record = asRecord(params)
       const path = asText(record?.path)
       if (!path) throw new Error('fs/write_text_file sem path')
+      guardFile('write', path)
       await writeFile(path, asText(record?.content) ?? '', 'utf-8')
       return {}
     })
@@ -434,7 +529,14 @@ export function createDevinAcpSession(
     // offered option keeps a turn from parking on a prompt no surface shows.
     // (Wiring this to Hive's approval cards is the next step, and the reason
     // the handler is here rather than left to `METHOD_NOT_FOUND`.)
+    //
+    // A scoped turn (Design Studio) is the exception: its answer is the
+    // scope's, decided here and never shown (Landing 15).
     acp.onRequest('session/request_permission', (params) => {
+      if (activeScope) {
+        const request = acpPermissionRequest(params, activeScope.cwd)
+        return acpPermissionOutcome(params, decideScoped(activeScope, request))
+      }
       const options = asRecord(params)?.options
       const first = Array.isArray(options) ? asRecord(options[0]) : null
       const optionId = asText(first?.optionId)
@@ -449,6 +551,7 @@ export function createDevinAcpSession(
       if (client === acp) {
         client = null
         acpSessionId = null
+        sessionCwd = null
         appliedModel = null
       }
     })
@@ -460,15 +563,16 @@ export function createDevinAcpSession(
     return acp
   }
 
-  /** Opens a new Devin session on the connection and announces its id. */
-  async function openSession(acp: AcpClient): Promise<void> {
+  /** Opens a new Devin session on the connection, in `cwd`, and announces its id. */
+  async function openSession(acp: AcpClient, cwd: string): Promise<void> {
     const created = (await acp.request<NewSessionResult>('session/new', {
-      cwd: opts.workspace,
+      cwd,
       mcpServers: []
     })) as NewSessionResult
     const id = asText(created?.sessionId)
     if (!id) throw new Error('O Devin não devolveu um id de sessão.')
     acpSessionId = id
+    sessionCwd = cwd
     // The model in force belongs to the session, not to the connection: a new
     // session starts on the agent's own default, so the next `applyModel` has
     // to send the flag again rather than believe a previous session's answer.
@@ -481,15 +585,17 @@ export function createDevinAcpSession(
     const plan = sessionPlan(turnOpts)
     const acp = await ensureClient()
     if (plan === 'keep') return
+    const cwd = turnCwd(turnOpts)
     if (plan === 'load') {
       const resume = turnOpts?.resume ?? null
       try {
         await acp.request('session/load', {
           sessionId: resume,
-          cwd: opts.workspace,
+          cwd,
           mcpServers: []
         })
         acpSessionId = resume
+        sessionCwd = cwd
         appliedModel = null
         return
       } catch {
@@ -500,7 +606,7 @@ export function createDevinAcpSession(
         // conversation the user just navigated away from.
       }
     }
-    await openSession(acp)
+    await openSession(acp, cwd)
   }
 
   /**
@@ -595,16 +701,19 @@ export function createDevinAcpSession(
   async function runTurn(text: string, turnOpts: TurnOpts | undefined): Promise<void> {
     const turnId = turnOpts?.turnId
     activeTurnId = turnId
+    activeScope = turnOpts?.scope
     cancelling = false
     openTools.clear()
 
     // A missing workspace must name itself rather than surface as an ENOENT
     // that blames the binary. `error` is terminal on its own — the contract
     // `cliAdapterCore` upholds — so no `done` follows it.
-    if (!isUsableCwd(opts.workspace)) {
+    const cwd = turnCwd(turnOpts)
+    if (!isUsableCwd(cwd)) {
+      activeScope = undefined
       queue.push({
         type: 'error',
-        message: `A pasta de trabalho não existe mais: ${opts.workspace || '(nenhuma)'}. Escolha outra pasta para continuar.`,
+        message: `A pasta de trabalho não existe mais: ${cwd || '(nenhuma)'}. Escolha outra pasta para continuar.`,
         turnId
       })
       return
@@ -625,6 +734,7 @@ export function createDevinAcpSession(
       )
     } finally {
       activeTurnId = undefined
+      activeScope = undefined
       cancelling = false
     }
   }
@@ -656,6 +766,7 @@ export function createDevinAcpSession(
       client?.stop()
       client = null
       acpSessionId = null
+      sessionCwd = null
       appliedModel = null
     }
   }

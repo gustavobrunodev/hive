@@ -371,6 +371,30 @@ export interface AgentInput {
   model?: string
   /** Per-turn effort override — same contract as `model` (`SessionOpts.effort` is the default). */
   effort?: string
+  /** Same contract as `TurnOpts.scope`. */
+  scope?: TurnScope
+}
+
+/**
+ * Where one turn runs, and what it may read, write and run (Design Studio,
+ * decision 2). The folder and the permissions belong to the **turn**, not the
+ * session: the pool keeps one session per agent, and a module turn and a Hive
+ * turn can share it while each stays in its own folder.
+ *
+ * A scoped turn never raises an approval card. Every permission question it
+ * asks is answered by `decideScoped` (`designStudio/turnScope.ts`): in the
+ * Claude adapter through the approval endpoint, in the Devin one through its
+ * ACP handlers.
+ */
+export interface TurnScope {
+  /** The folder the turn runs in — the CLI's working directory. */
+  cwd: string
+  /** Where the turn may read. Anything else is denied. */
+  readRoots: string[]
+  /** Where the turn may write. Anything else is denied. */
+  writeRoots: string[]
+  /** The closed list of commands, each `node <absolute script path>` (Landing 13). */
+  commands: string[]
 }
 
 /**
@@ -743,6 +767,12 @@ export interface TurnOpts {
    * ignore it — it never reaches a CLI.
    */
   conversationId?: string
+  /**
+   * Design Studio (decision 2): runs this turn in `scope.cwd` and answers its
+   * permission questions by `scope`, without a card. Omitted → the session's
+   * workspace and the Hive's own approval flow, exactly as before.
+   */
+  scope?: TurnScope
 }
 
 /** One line of the `<attached-files>` block. */
@@ -812,8 +842,12 @@ export interface AgentSession {
 export interface PermissionPromptEndpoint {
   /** The CLI flag value naming the tool (`mcp__hive_approvals__approve`). */
   promptToolName: string
-  /** MCP server config JSON for one turn, or `null` while the bridge isn't listening. */
-  mcpConfig(turnId?: string): string | null
+  /**
+   * The path of one turn's MCP config, or `null` while the bridge isn't
+   * listening. A `scope` registers the turn as scoped: its prompts are then
+   * answered by `decideScoped`, never by a card (Landing 14).
+   */
+  mcpConfig(turnId?: string, scope?: TurnScope): string | null
 }
 
 /**

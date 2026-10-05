@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ApprovalDecision, ApprovalEvent } from './agentAdapter'
+import { isAbsolute } from 'node:path'
+import type { ApprovalDecision, ApprovalEvent, TurnScope } from './agentAdapter'
+import { decideScoped, type ScopedRequest } from './designStudio/turnScope'
 
 /**
  * `ApprovalService` (agent-approvals) — the bridge that turns "the agent needs
@@ -151,6 +153,11 @@ export interface ApprovalService {
   /** The `--permission-prompt-tool` value: `mcp__hive_approvals__approve`. */
   readonly promptToolName: string
   /**
+   * Design Studio (Landing 14): forgets a scoped turn's scope. Called on the
+   * turn's terminal event — after it, the turn asks nothing more.
+   */
+  forgetTurn(turnId: string): void
+  /**
    * The **path** of a freshly written `--mcp-config` file for one turn. The
    * config inside carries the live port, the bearer token, and `turnId` as a
    * header so an approval raised by this child routes back to the conversation
@@ -161,7 +168,7 @@ export interface ApprovalService {
    * it. Never inline JSON: see the module header for the Windows argv split
    * that cost every session on that platform.
    */
-  mcpConfig(turnId?: string): string | null
+  mcpConfig(turnId?: string, scope?: TurnScope): string | null
   /** Binds the loopback listener. Resolves once the port is known. */
   listen(): Promise<void>
   /** Subscribes to pending requests; returns an unsubscribe function. */
@@ -218,6 +225,54 @@ export function approvalDetailFor(input: Record<string, unknown> | undefined): s
     pick('pattern') ??
     pick('description')
   )
+}
+
+/** The first non-glob part of a pattern: where a `Glob` of `/etc/**` really reads. */
+function globBase(pattern: string): string {
+  const cut = pattern.search(/[*?[{]/)
+  const head = cut === -1 ? pattern : pattern.slice(0, cut)
+  return head.replace(/[\\/][^\\/]*$/, '') || head
+}
+
+/**
+ * A Claude tool call, in the words `decideScoped` speaks (Landing 13). The
+ * vocabulary is the Claude CLI's own — which is why the mapping lives here,
+ * beside the endpoint only that CLI calls.
+ *
+ * A read without a path (`Grep`, `Glob`) reads the working directory; a
+ * `Glob` whose pattern is itself absolute reads where the pattern points.
+ */
+export function claudeToolRequest(
+  tool: string,
+  input: Record<string, unknown> | undefined,
+  cwd: string
+): ScopedRequest {
+  const text = (key: string): string | undefined =>
+    typeof input?.[key] === 'string' && input[key] !== '' ? (input[key] as string) : undefined
+  const mapper = CLAUDE_TOOL_REQUESTS[tool]
+  return mapper ? mapper(text, cwd) : { kind: 'other', tool }
+}
+
+type InputText = (key: string) => string | undefined
+
+/** Where a `Glob` reads: its `path`, else the base of an absolute pattern, else `cwd`. */
+function globRead(text: InputText, cwd: string): ScopedRequest {
+  const pattern = text('pattern')
+  const fromPattern = pattern && isAbsolute(pattern) ? globBase(pattern) : undefined
+  return { kind: 'read', path: text('path') ?? fromPattern ?? cwd }
+}
+
+/** The Claude tools a scoped turn can ask about, each read into `decideScoped` words. */
+const CLAUDE_TOOL_REQUESTS: Record<string, (text: InputText, cwd: string) => ScopedRequest> = {
+  Bash: (text) => ({ kind: 'command', command: text('command') ?? '' }),
+  Read: (text) => ({ kind: 'read', path: text('file_path') ?? '' }),
+  Glob: globRead,
+  Grep: (text, cwd) => ({ kind: 'read', path: text('path') ?? cwd }),
+  LS: (text, cwd) => ({ kind: 'read', path: text('path') ?? cwd }),
+  Write: (text) => ({ kind: 'write', path: text('file_path') ?? '' }),
+  Edit: (text) => ({ kind: 'write', path: text('file_path') ?? '' }),
+  MultiEdit: (text) => ({ kind: 'write', path: text('file_path') ?? '' }),
+  NotebookEdit: (text) => ({ kind: 'write', path: text('notebook_path') ?? '' })
 }
 
 interface Pending {
@@ -280,6 +335,12 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
    * own config — see `ApprovalDecision.scope`.
    */
   let sessionAllowAll = false
+  /**
+   * Design Studio (Landing 14): the turns that answer by scope, keyed by turn
+   * id. A scoped turn's prompts never reach a card, a standing rule or the
+   * session grant — the Hive's own permissions do not widen a module turn.
+   */
+  const scopes = new Map<string, TurnScope>()
   let server: Server | null = null
   let port: number | null = null
 
@@ -360,6 +421,17 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
     }
   }
 
+  /** A scoped turn's answer: the scope's, at once, with no event for anyone to draw. */
+  function scopedDecision(
+    scope: TurnScope,
+    tool: string,
+    input: Record<string, unknown> | undefined
+  ): ApprovalDecision {
+    return decideScoped(scope, claudeToolRequest(tool, input, scope.cwd)) === 'allow'
+      ? { behavior: 'allow', scope: 'once' }
+      : { behavior: 'deny', message: 'Fora do que este turno pode fazer.' }
+  }
+
   // --- MCP over HTTP -------------------------------------------------------
 
   function toolsList(): unknown {
@@ -396,7 +468,10 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
       return { content: [{ type: 'text', text: `Unknown tool: ${params?.name}` }], isError: true }
     }
     const args = params.arguments ?? {}
-    const decision = await ask(args.tool_name ?? 'unknown', args.input, turnId)
+    const scope = turnId !== undefined ? scopes.get(turnId) : undefined
+    const decision = scope
+      ? scopedDecision(scope, args.tool_name ?? 'unknown', args.input)
+      : await ask(args.tool_name ?? 'unknown', args.input, turnId)
     const payload =
       decision.behavior === 'allow'
         ? { behavior: 'allow', updatedInput: args.input ?? {} }
@@ -496,8 +571,15 @@ export function createApprovalService(options: ApprovalServiceOptions = {}): App
   return {
     promptToolName: `mcp__${SERVER_NAME}__${TOOL_NAME}`,
 
-    mcpConfig(turnId?: string): string | null {
+    forgetTurn(turnId: string): void {
+      scopes.delete(turnId)
+    },
+
+    mcpConfig(turnId?: string, scope?: TurnScope): string | null {
       if (port === null) return null
+      // Registered before the file exists, so the first prompt of the turn —
+      // which can only arrive after the CLI read the file — finds it.
+      if (scope && turnId !== undefined) scopes.set(turnId, scope)
       const config = JSON.stringify({
         mcpServers: {
           [SERVER_NAME]: {

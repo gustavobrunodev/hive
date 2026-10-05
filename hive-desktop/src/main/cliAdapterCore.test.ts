@@ -318,3 +318,69 @@ describe('a turn that fails with an empty stderr', () => {
     expect(event.message).toContain('claude exited with code 1')
   })
 })
+
+/**
+ * Design Studio (decision 2): the folder belongs to the turn, not the session.
+ * The pool keeps one session per agent, so a module turn (in a Produto's
+ * folder) and a Hive turn (in the workspace) can be in flight on the same
+ * session at once — each process must start in its own folder, and each event
+ * must say which turn it came from.
+ */
+describe('a scoped turn beside an ordinary one', () => {
+  const PRODUTO = '/home/marina/Documentos/Design Studio/Câmbio'
+  const SCOPE = {
+    cwd: PRODUTO,
+    readRoots: ['/home/marina/Documentos/Design Studio'],
+    writeRoots: [`${PRODUTO}/relatorios`],
+    commands: []
+  }
+
+  it('C43a: two concurrent turns spawn in their own folders and tag every event with their own turnId', async () => {
+    const runner = createFakeProcessRunner()
+    // Both still running when the other starts: the module turn answers last.
+    runner.script({ chunks: [{ stream: 'stdout', data: 'do módulo\n' }], code: 0, delayMs: 30 })
+    runner.script({ chunks: [{ stream: 'stdout', data: 'do Hive\n' }], code: 0, delayMs: 5 })
+    const session = createCliAgentSession(
+      runner,
+      { workspace: '/ws' },
+      { command: 'fake', errorLabel: 'fake', buildArgs: () => ['-p'] }
+    )
+    session.send({ text: 'gere o relatório', turnId: 'modulo', scope: SCOPE })
+    session.send({ text: 'olá', turnId: 'hive' })
+
+    expect(runner.calls.map((call) => call.opts?.cwd)).toEqual([PRODUTO, '/ws'])
+
+    const events = await take(session.events, 4)
+    const byTurn = (turnId: string): AgentEvent[] => events.filter((e) => e.turnId === turnId)
+    expect(byTurn('hive').map((e) => e.type)).toEqual(['token', 'done'])
+    expect(byTurn('modulo').map((e) => e.type)).toEqual(['token', 'done'])
+    const text = (turnId: string): string =>
+      byTurn(turnId)
+        .filter((e): e is Extract<AgentEvent, { type: 'token' }> => e.type === 'token')
+        .map((e) => e.text)
+        .join('')
+    expect(text('hive')).toContain('do Hive')
+    expect(text('modulo')).toContain('do módulo')
+    expect(events.every((event) => event.turnId === 'hive' || event.turnId === 'modulo')).toBe(true)
+  })
+
+  it('hands the scope to the adapter, so it can confine the turn', () => {
+    const runner = createFakeProcessRunner()
+    const seen: unknown[] = []
+    const session = createCliAgentSession(
+      runner,
+      { workspace: '/ws' },
+      {
+        command: 'fake',
+        errorLabel: 'fake',
+        buildArgs: (_prompt, turn) => {
+          seen.push(turn.scope)
+          return ['-p']
+        }
+      }
+    )
+    session.runWorkflow({ key: 'relatorio-likert', prompt: 'rode' }, { scope: SCOPE, turnId: 't' })
+    session.send({ text: 'sem escopo', turnId: 'u' })
+    expect(seen).toEqual([SCOPE, undefined])
+  })
+})

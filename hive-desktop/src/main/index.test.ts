@@ -295,6 +295,7 @@ const { fakeApprovalService, approvalRequestListeners } = vi.hoisted(() => {
       }),
       respond: vi.fn(),
       cancel: vi.fn(),
+      forgetTurn: vi.fn(),
       rules: vi.fn(() => []),
       clearRules: vi.fn(),
       close: vi.fn(() => Promise.resolve())
@@ -2270,6 +2271,70 @@ describe('main process bootstrap', () => {
         { turnId: 't-2', conversationId: 'conv-b' }
       )
       expect(fakeReviewService.beginTurn).toHaveBeenCalledWith(dir, 't-2', 'conv-b')
+
+      rmSync(dir, { recursive: true, force: true })
+    })
+  })
+
+  /**
+   * Design Studio (decision 2): a scoped turn crosses the real `agent:send`
+   * handler with its scope intact, and — running in a Produto's folder, not
+   * the workspace — leaves no checkpoint in the Agent Change Review.
+   */
+  describe('agent:send with a scope (Design Studio)', () => {
+    const SCOPE = {
+      cwd: '/docs/Design Studio/Extrato',
+      readRoots: ['/docs/Design Studio'],
+      writeRoots: ['/docs/Design Studio/Extrato/relatorios'],
+      commands: ['node "/recursos/skills/relatorio-likert/scripts/relatorio.mjs"']
+    }
+
+    it("C43d: agent:send and agent:runWorkflow pass the renderer's scope to the agent service", async () => {
+      fakeAgentService.send.mockClear()
+      fakeAgentService.runWorkflow.mockClear()
+      await findHandler('agent:send')({}, 'gere o relatório', {
+        turnId: 'gerar-1',
+        agentId: 'claude-cli',
+        scope: SCOPE
+      })
+      expect(fakeAgentService.send).toHaveBeenCalledWith(
+        'gere o relatório',
+        expect.objectContaining({ turnId: 'gerar-1', agentId: 'claude-cli', scope: SCOPE })
+      )
+      await findHandler('agent:runWorkflow')(
+        {},
+        { key: 'relatorio-likert', prompt: 'gere' },
+        { turnId: 'gerar-2', scope: SCOPE }
+      )
+      expect(fakeAgentService.runWorkflow).toHaveBeenCalledWith(
+        { key: 'relatorio-likert', prompt: 'gere' },
+        expect.objectContaining({ turnId: 'gerar-2', scope: SCOPE })
+      )
+    })
+
+    it('C44: a scoped agent:send never begins a review turn, and an unscoped one still does', async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'hive-main-scoped-turn-'))
+      await findHandler('workspace:open')({}, dir)
+      fakeReviewService.beginTurn.mockClear()
+      fakeReviewService.endTurn.mockClear()
+
+      await findHandler('agent:send')({}, 'gere', { turnId: 'modulo', scope: SCOPE })
+      await findHandler('agent:runWorkflow')(
+        {},
+        { key: 'relatorio-likert' },
+        { turnId: 'modulo-2', scope: SCOPE }
+      )
+      expect(fakeReviewService.beginTurn).not.toHaveBeenCalled()
+      // Its terminal event finds no review turn to close, so nothing pends.
+      const reviewListener = agentOnEventCalls[0].listener
+      reviewListener({ type: 'tool', name: 'Write', filePath: `${dir}/a.txt`, turnId: 'modulo' })
+      reviewListener({ type: 'done', turnId: 'modulo' })
+      expect(fakeReviewService.endTurn).not.toHaveBeenCalled()
+      // …and the scope its prompts were answered by is forgotten with it.
+      expect(fakeApprovalService.forgetTurn).toHaveBeenCalledWith('modulo')
+
+      await findHandler('agent:send')({}, 'do Hive', { turnId: 'hive' })
+      expect(fakeReviewService.beginTurn).toHaveBeenCalledWith(dir, 'hive', undefined)
 
       rmSync(dir, { recursive: true, force: true })
     })

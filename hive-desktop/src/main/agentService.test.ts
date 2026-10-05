@@ -273,6 +273,28 @@ describe('AgentService (multi-agent pool)', () => {
     ])
   })
 
+  it("C43d: send() and runWorkflow() hand the turn's scope to the adapter", () => {
+    // Design Studio (decision 2): the folder and the permissions are the
+    // turn's, so they travel with the turn — the pooled session is shared.
+    const { adapter, sessions } = createFakeAdapter()
+    const service = createAgentService(createFakeRegistry({ fake: adapter }))
+    const scope = {
+      cwd: '/docs/Design Studio/Câmbio',
+      readRoots: ['/docs/Design Studio'],
+      writeRoots: ['/docs/Design Studio/Câmbio/relatorios'],
+      commands: ['node "/recursos/relatorio.mjs"']
+    }
+
+    service.startSession({ workspace: '/ws' })
+    service.send('gere', { turnId: 't1', scope })
+    service.runWorkflow({ key: 'relatorio-voz', prompt: 'gere' }, { turnId: 't2', scope })
+    service.send('do Hive', { turnId: 't3' })
+
+    expect(sessions[0].sends[0].scope).toEqual(scope)
+    expect(sessions[0].workflowOpts[0]).toMatchObject({ scope })
+    expect(sessions[0].sends[1].scope).toBeUndefined()
+  })
+
   it('onEvent() forwards events from every pooled session, tagged by turnId (concurrency)', async () => {
     const a = createFakeAdapter('agent-a')
     const b = createFakeAdapter('agent-b')
