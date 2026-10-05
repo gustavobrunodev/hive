@@ -31,7 +31,12 @@ export function saidaPermitida(saida, cwd = process.cwd()) {
   const raiz = resolve(cwd, 'relatorios')
   const alvo = resolve(cwd, saida)
   const caminho = relative(raiz, alvo)
-  return caminho !== '' && !caminho.startsWith('..') && !caminho.startsWith(sep) && !/^[a-zA-Z]:/.test(caminho)
+  return (
+    caminho !== '' &&
+    !caminho.startsWith('..') &&
+    !caminho.startsWith(sep) &&
+    !/^[a-zA-Z]:/.test(caminho)
+  )
 }
 
 function dataISO(ms) {
@@ -77,7 +82,12 @@ function tendenciaTexto(t) {
 
 /** Agrupa os registros por tema: soma de pesos, série semanal e as linhas do grupo. */
 export function agrupar(dados) {
-  const grupos = new Map(dados.temas.map((tema) => [tema.id, { tema, peso: 0, semanas: new Array(SEMANAS).fill(0), linhas: [] }]))
+  const grupos = new Map(
+    dados.temas.map((tema) => [
+      tema.id,
+      { tema, peso: 0, semanas: new Array(SEMANAS).fill(0), linhas: [] }
+    ])
+  )
   for (const linha of dados.registros) {
     const grupo = linha.tema === null ? undefined : grupos.get(linha.tema)
     if (!grupo) continue
@@ -162,9 +172,13 @@ function narrativa(dados, dores, frente, fonte) {
     `A Dor que lidera é “${topo.titulo}”, com ${formatar(topo.volume)} ${fonte.unidadeDor} e ${tendenciaTexto(topo.tendencia)} no período. ${topo.resumo}`
   ]
   if (cresce && cresce.id !== topo.id) {
-    paragrafos.push(`A que mais cresce é “${cresce.titulo}” (${tendenciaTexto(cresce.tendencia)}). ${cresce.resumo}`)
+    paragrafos.push(
+      `A que mais cresce é “${cresce.titulo}” (${tendenciaTexto(cresce.tendencia)}). ${cresce.resumo}`
+    )
   } else if (segunda) {
-    paragrafos.push(`Em seguida vem “${segunda.titulo}”, com ${formatar(segunda.volume)} ${fonte.unidadeDor}. ${segunda.resumo}`)
+    paragrafos.push(
+      `Em seguida vem “${segunda.titulo}”, com ${formatar(segunda.volume)} ${fonte.unidadeDor}. ${segunda.resumo}`
+    )
   }
   return paragrafos
 }
@@ -221,14 +235,17 @@ export function markdown({ frente, narrativa }) {
 export function executar(fonte, argv = process.argv.slice(2)) {
   const args = lerArgumentos(argv)
   if (!args.dados || !args.saida) {
-    process.stderr.write('Uso: node relatorio.mjs --dados <arquivo.json> --saida <arquivo> [--agente <nome>] [--modelo <id>]\n')
+    process.stderr.write(
+      'Uso: node relatorio.mjs --dados <arquivo.json> --saida <arquivo> [--agente <nome>] [--modelo <id>]\n'
+    )
     process.exit(2)
   }
   if (!saidaPermitida(args.saida)) {
     process.stderr.write(`A saída precisa ficar dentro de ${resolve('relatorios')}.\n`)
     process.exit(2)
   }
-  const progresso = (passo) => writeFileSync(`${args.saida}.progresso`, JSON.stringify({ passo }), 'utf-8')
+  const progresso = (passo) =>
+    writeFileSync(`${args.saida}.progresso`, JSON.stringify({ passo }), 'utf-8')
   progresso(1)
   const dados = JSON.parse(readFileSync(args.dados, 'utf-8'))
   progresso(2)
@@ -236,5 +253,7 @@ export function executar(fonte, argv = process.argv.slice(2)) {
   progresso(3)
   writeFileSync(args.saida, markdown(relatorio), 'utf-8')
   progresso(4)
-  process.stdout.write(`Rascunho gravado em ${args.saida}: ${relatorio.frente.dores.length} Dores ranqueadas.\n`)
+  process.stdout.write(
+    `Rascunho gravado em ${args.saida}: ${relatorio.frente.dores.length} Dores ranqueadas.\n`
+  )
 }

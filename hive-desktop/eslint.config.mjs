@@ -81,7 +81,10 @@ export default defineConfig(
     // `tools/spikes/**` is the same category: throwaway measurement scripts
     // (the ones the whisper worker's own header cites for its numbers), written
     // in plain JS where a return-type annotation is not even syntax.
-    files: ['scripts/**/*.mjs', 'tools/spikes/**/*.mjs'],
+    //
+    // The Design Studio's report skills are the same too: plain Node scripts
+    // the agent runs with `node`, shipped outside the asar (Landing 6).
+    files: ['scripts/**/*.mjs', 'tools/spikes/**/*.mjs', 'resources/**/*.mjs'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off'
     }

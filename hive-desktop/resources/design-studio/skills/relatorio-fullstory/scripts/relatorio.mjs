@@ -35,7 +35,9 @@ export const FULLSTORY = {
       }))
   },
   destaque(dados, frente) {
-    const comSinal = dados.registros.filter((linha) => linha.tema !== null).reduce((s, l) => s + l.peso, 0)
+    const comSinal = dados.registros
+      .filter((linha) => linha.tema !== null)
+      .reduce((s, l) => s + l.peso, 0)
     const parte = frente.volume > 0 ? (comSinal / frente.volume) * 100 : 0
     return `${parte.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% das sessões com sinal de frustração`
   }
