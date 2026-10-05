@@ -47,7 +47,9 @@
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  border: 1px solid var(--border-strong);
+  /* A control's edge at 3:1 in both themes — the hairline `--border-strong`
+     measured 1.71:1 (light) and 1.97:1 (dark). */
+  border: 1px solid var(--faint);
   border-radius: var(--rounded-md);
   background: transparent;
   font: inherit;

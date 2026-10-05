@@ -7096,7 +7096,7 @@ button.hds-stage-row:focus-visible .hds-stage-cue {
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--faint);
   border-radius: var(--rounded-md);
   background: transparent;
   font: inherit;
