@@ -853,7 +853,6 @@
 }
 
 .ds-folha-bloco-titulo small {
-  margin-left: 4px;
   font-size: 0.8125rem;
   font-weight: 400;
   color: var(--muted);
@@ -1214,7 +1213,6 @@
 }
 
 .ds-ranking-titulo small {
-  margin-left: 4px;
   font-weight: 400;
   color: var(--muted);
 }

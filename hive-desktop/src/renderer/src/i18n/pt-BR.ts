@@ -2980,7 +2980,9 @@ export const ptBR = {
       sinal: 'sinal',
       porcento: (n: number) => `${n}%`,
       evidencias: 'Evidências',
-      evidenciasMeta: (k: number, volume: string) => `${k} de ${volume}, escolhidas pelo Relatório`,
+      /** Leading space and dot included: the heading reads "Evidências · 3 de 1.284, …". */
+      evidenciasMeta: (k: number, volume: string) =>
+        ` · ${k} de ${volume}, escolhidas pelo Relatório`,
       nota: (n: number) => `Nota ${n} de 5`,
       ligacao: (id: string) => `Ligação ${id}`,
       ligouDeNovo: 'Ligou de novo',
@@ -2991,6 +2993,7 @@ export const ptBR = {
       sessaoMeta: (dispositivo: string, tela: string, momento: string) =>
         `${dispositivo} · tela ${tela} · aos ${momento}`,
       mesmaTela: 'Na mesma tela',
+      mesmaTelaMeta: (tela: string) => ` · ${tela}`,
       nenhumaOutra: 'Nenhuma outra Dor nesta tela.',
       citarNoChat: 'Citar no chat',
       citarNestaConversa: 'Citar nesta conversa',
@@ -3028,7 +3031,7 @@ export const ptBR = {
       title: 'Relatórios de Fonte',
       subtitle:
         'O que cada Fonte diz sobre cada Produto nos últimos 90 dias. É deste material que o agente parte para propor melhorias.',
-      descricao: (descricao: string) => `· ${descricao}`,
+      descricao: (descricao: string) => ` · ${descricao}`,
       periodo: (produto: string, periodo: string) => `${produto} · ${periodo}`,
       naoGerado: (produto: string) => `${produto} · ainda não gerado`,
       meta: (volume: string, unidade: string, data: string) =>
@@ -3051,8 +3054,12 @@ export const ptBR = {
       gerarDeNovo: 'Gerar de novo',
       comoFoiFeito: 'Como foi feito.',
       doresRanqueadas: 'Dores ranqueadas',
-      doresRanqueadasN: (n: number) => `· ${n}`,
+      doresRanqueadasN: (n: number) => ` · ${n}`,
       telaDor: (tela: string) => `Tela ${tela}`,
+      /** A ranked Dor's line, read as one sentence by assistive tech. */
+      rankLinha: (rank: number, titulo: string, detalhes: string[]) =>
+        `${rank}. ${titulo}: ${detalhes.join(', ')}`,
+      impactoLinha: (nivel: string) => `impacto ${nivel.toLowerCase()}`,
       naoEncontrado: 'Relatório não encontrado',
       naoEncontradoFrase: 'O arquivo deste Relatório não está mais na pasta do Design Studio.',
       verRelatorios: 'Ver Relatórios'

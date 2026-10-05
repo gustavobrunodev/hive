@@ -73,7 +73,8 @@ function ProdutoSection({
   return (
     <section className="ds-rel-produto" aria-labelledby={headingId}>
       <h2 id={headingId} className="ds-rel-produto-titulo">
-        {produto.nome} <small>{t('designStudio.relatorios.descricao', produto.descricao)}</small>
+        {produto.nome}
+        <small>{t('designStudio.relatorios.descricao', produto.descricao)}</small>
       </h2>
       <ul className="ds-rel-lista">
         {FONTES.map((fonte) => (

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync
+} from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import {
@@ -9,7 +17,7 @@ import {
   resolveDataRoot,
   resolveResourcesDir
 } from './dataRoot'
-import { readCatalogo } from './catalogo'
+import { readCatalogo, readVolumes } from './catalogo'
 
 /**
  * Design Studio — where the module's data lives (Landing 3 and 11).
@@ -206,5 +214,33 @@ describe('the module resources', () => {
     expect(builder).toMatch(/^asarUnpack:\n {2}- resources\/\*\*$/m)
     for (const file of EXPECTED)
       expect(existsSync(join(APP_ROOT, 'resources', 'design-studio', file))).toBe(true)
+  })
+})
+
+describe('the sample data volumes', () => {
+  it('reads the volume every data file declares, by Produto name and Fonte', () => {
+    const resources = resolveResourcesDir({
+      isPackaged: false,
+      resourcesPath: '/nada',
+      appPath: APP_ROOT
+    })
+    const volumes = readVolumes(resources, readCatalogo(resources))
+    expect(volumes['Extrato']).toEqual({ likert: 18240, voz: 4870, fullstory: 212400 })
+    expect(volumes['Câmbio']?.voz).toBe(3205)
+  })
+
+  it('counts nothing for a file that is missing or declares no volume', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'hive-ds-volumes-'))
+    const catalogo = readCatalogo(
+      resolveResourcesDir({ isPackaged: false, resourcesPath: '/nada', appPath: APP_ROOT })
+    )
+    mkdirSync(join(dir, 'dados-de-exemplo', 'pix'), { recursive: true })
+    writeFileSync(
+      join(dir, 'dados-de-exemplo', 'pix', 'voz.json'),
+      JSON.stringify({ formato: 'x' })
+    )
+    const volumes = readVolumes(dir, catalogo)
+    expect(volumes['Pix']).toEqual({})
+    expect(volumes['Câmbio']).toEqual({})
   })
 })

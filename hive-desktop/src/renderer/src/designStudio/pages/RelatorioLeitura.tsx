@@ -47,6 +47,12 @@ export function RelatorioLeitura({
               <button
                 type="button"
                 className="ds-rank-linha"
+                aria-label={t('designStudio.relatorio.rankLinha', dor.rank, dor.titulo, [
+                  t('designStudio.nota.volume', formatNumber(dor.volume), unidadeDor),
+                  trendSigned(dor.tendencia),
+                  ...(dor.tela ? [t('designStudio.relatorio.telaDor', dor.tela)] : []),
+                  t('designStudio.relatorio.impactoLinha', impactWord(dor.impacto))
+                ])}
                 onClick={(event) =>
                   dados.folha.abrir(
                     { relatorio: relatorio.caminho, dor: dor.id },

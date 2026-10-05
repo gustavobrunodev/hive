@@ -291,7 +291,8 @@ function MesmaTela({
   return (
     <section className="ds-folha-bloco" aria-labelledby={headingId}>
       <h3 id={headingId} className="ds-folha-bloco-titulo">
-        {t('designStudio.folha.mesmaTela')} <small>{tela}</small>
+        {t('designStudio.folha.mesmaTela')}
+        <small>{t('designStudio.folha.mesmaTelaMeta', tela)}</small>
       </h3>
       {outras.length === 0 ? (
         <p className="ds-folha-vazio">{t('designStudio.folha.nenhumaOutra')}</p>

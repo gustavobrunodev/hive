@@ -598,6 +598,11 @@ describe('main process bootstrap', () => {
         'Pix'
       ])
       expect(dados.relatorios).toEqual([])
+      expect((dados as unknown as { volumes: Record<string, unknown> }).volumes['Pix']).toEqual({
+        likert: 22480,
+        voz: 6112,
+        fullstory: 301800
+      })
       expect(readdirSync(root()).sort()).toEqual(['Câmbio', 'Extrato', 'Pix'])
     })
 
