@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react'
+import { AvisosDoModulo } from './AvisosDoModulo'
+import { FolhaDor } from './FolhaDor'
+import { ModuleDataContext, useModuleData } from './moduleData'
 import { DESIGN_PAGES, type DesignRoute } from './routes'
 import type { DesignStudioStore, ModuleConversation } from './useDesignStudio'
 import { ConversaPage } from './pages/ConversaPage'
@@ -43,11 +46,11 @@ function pageBody(
     case 'inicio':
       return <InicioPage userName={userName} seal={seal} />
     case 'dores':
-      return <DoresPage seal={seal} />
+      return <DoresPage seal={seal} navigate={store.navigate} />
     case 'relatorios':
-      return <RelatoriosPage seal={seal} />
+      return <RelatoriosPage seal={seal} navigate={store.navigate} />
     case 'relatorio':
-      return <RelatorioPage relatorio={route.relatorio} seal={seal} />
+      return <RelatorioPage relatorio={route.relatorio} seal={seal} navigate={store.navigate} />
     case 'conversa':
       return <ConversaPage conversation={findConversation(store, route)} seal={seal} />
   }
@@ -85,21 +88,26 @@ export function DesignStudioShell({
   navVisible
 }: DesignStudioShellProps): React.JSX.Element {
   const seal = !navVisible
+  const dados = useModuleData()
   const layers = DESIGN_PAGES.filter((page) => store.mountedPages.includes(page))
     .map((page) => store.pageRoutes[page])
     .filter((route): route is DesignRoute => route !== undefined)
   return (
-    <div className="ds-shell">
-      {layers.map((route) => (
-        <div
-          key={layerKey(route)}
-          className="ds-page-layer"
-          data-page={route.pagina}
-          data-active={route.pagina === store.route.pagina || undefined}
-        >
-          {pageBody(route, store, userName, seal)}
-        </div>
-      ))}
-    </div>
+    <ModuleDataContext.Provider value={dados}>
+      <div className="ds-shell">
+        {layers.map((route) => (
+          <div
+            key={layerKey(route)}
+            className="ds-page-layer"
+            data-page={route.pagina}
+            data-active={route.pagina === store.route.pagina || undefined}
+          >
+            {pageBody(route, store, userName, seal)}
+          </div>
+        ))}
+      </div>
+      <FolhaDor route={store.route} navigate={store.navigate} />
+      <AvisosDoModulo geracao={dados.geracao} />
+    </ModuleDataContext.Provider>
   )
 }

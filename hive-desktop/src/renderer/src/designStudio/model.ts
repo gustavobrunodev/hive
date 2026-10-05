@@ -56,3 +56,42 @@ export function fonteName(fonte: FonteId): string {
   }
   return names[fonte]
 }
+
+/** The agents the module runs, in the order "the first available" picks from (Unresolved 14). */
+export const MODULE_AGENTS = ['claude-cli', 'devin'] as const
+export type ModuleAgentId = (typeof MODULE_AGENTS)[number]
+
+/** The agent a module turn runs on: its id, the name a person knows it by, and its pinned model. */
+export interface ModuleAgent {
+  id: ModuleAgentId
+  nome: string
+  modelo: string | null
+}
+
+function isModuleAgent(id: string | null): id is ModuleAgentId {
+  return id !== null && (MODULE_AGENTS as readonly string[]).includes(id)
+}
+
+/** The display name of a module agent. */
+export function moduleAgentName(id: ModuleAgentId): string {
+  return id === 'devin' ? t('designStudio.agentes.devin') : t('designStudio.agentes.claude')
+}
+
+/**
+ * The module's default agent (Unresolved 14, written default): the Hive's
+ * default agent when it is Claude or Devin; otherwise the first of the two
+ * that is available — Copilot is not in the module. The model is that agent's
+ * pin. With neither available, Claude: the turn then fails the way any turn on
+ * a missing agent does, with the Hive's own repair.
+ */
+export function moduleDefaultAgent(
+  hiveDefault: string | null,
+  available: ReadonlyArray<{ id: string; available: boolean }>,
+  pins: Readonly<Record<string, { model: string } | undefined>>
+): ModuleAgent {
+  const id: ModuleAgentId = isModuleAgent(hiveDefault)
+    ? hiveDefault
+    : (MODULE_AGENTS.find((agent) => available.some((a) => a.id === agent && a.available)) ??
+      'claude-cli')
+  return { id, nome: moduleAgentName(id), modelo: pins[id]?.model ?? null }
+}

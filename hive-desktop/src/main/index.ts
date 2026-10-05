@@ -22,7 +22,7 @@ import { migrateUserData } from './userDataMigration'
 import { createChatHistoryStore, type StoredCompaction } from './chatHistoryStore'
 import { ensureProdutoFolders, resolveDataRoot, resolveResourcesDir } from './designStudio/dataRoot'
 import { listModuleConversations } from './designStudio/conversations'
-import { readCatalogo, type Catalogo } from './designStudio/catalogo'
+import { readCatalogo, readVolumes, type Catalogo } from './designStudio/catalogo'
 import { latestRelatorios, relatorioAt } from './designStudio/relatorios'
 import {
   createGenerationService,
@@ -683,6 +683,7 @@ app.whenReady().then(() => {
     appPath: app.isPackaged ? app.getAppPath() : join(__dirname, '..', '..')
   })
   let designStudioCatalogo: Catalogo | null = null
+  let designStudioVolumes: ReturnType<typeof readVolumes> | null = null
   const designStudioCatalog = (): Catalogo => {
     designStudioCatalogo ??= readCatalogo(designStudioResources)
     return designStudioCatalogo
@@ -1817,7 +1818,12 @@ app.whenReady().then(() => {
   ipcMain.handle('designStudio:dados', async () => {
     const catalogo = designStudioCatalog()
     ensureProdutoFolders(designStudioRoot, catalogo.produtos)
-    return { catalogo, relatorios: latestRelatorios(designStudioRoot, catalogo) }
+    designStudioVolumes ??= readVolumes(designStudioResources, catalogo)
+    return {
+      catalogo,
+      relatorios: latestRelatorios(designStudioRoot, catalogo),
+      volumes: designStudioVolumes
+    }
   })
   ipcMain.handle('designStudio:relatorio', async (_event, caminho: unknown) =>
     typeof caminho === 'string' ? relatorioAt(designStudioRoot, caminho) : null

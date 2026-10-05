@@ -38,7 +38,7 @@ import type {
 } from '../main/configStore'
 import type { ChatSessionMeta, StoredChatSession, StoredCompaction } from '../main/chatHistoryStore'
 import type { ModuleConversationMeta } from '../main/designStudio/conversations'
-import type { Catalogo } from '../main/designStudio/catalogo'
+import type { Catalogo, FonteId } from '../main/designStudio/catalogo'
 import type { RelatorioDeFonte } from '../main/designStudio/relatorioFormato'
 import type {
   EventoDeGeracao,
@@ -452,8 +452,11 @@ const hive = {
     // The catalog and the Relatórios in use — the most recent valid one of
     // each Produto × Fonte (Landing 19). Opening the module is also what
     // creates the Produto folders.
-    dados: (): Promise<{ catalogo: Catalogo; relatorios: RelatorioDeFonte[] }> =>
-      ipcRenderer.invoke('designStudio:dados'),
+    dados: (): Promise<{
+      catalogo: Catalogo
+      relatorios: RelatorioDeFonte[]
+      volumes: Record<string, Partial<Record<FonteId, number>>>
+    }> => ipcRenderer.invoke('designStudio:dados'),
     // One Relatório by its path relative to `<raiz>`; `null` when it is gone.
     relatorio: (caminho: string): Promise<RelatorioDeFonte | null> =>
       ipcRenderer.invoke('designStudio:relatorio', caminho),

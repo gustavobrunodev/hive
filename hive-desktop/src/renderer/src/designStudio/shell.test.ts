@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, render, within } from '@testing-library/react'
 import { DesignStudioShell } from './DesignStudioShell'
@@ -16,9 +16,23 @@ import type { DesignPage, DesignRoute } from './routes'
 
 const NOW = Date.UTC(2026, 9, 4, 15, 0, 0)
 
+beforeEach(() => {
+  // The module's data never arrives here: every page stays in the frame it
+  // draws while loading — the frame these cases are about.
+  vi.stubGlobal('hive', {
+    designStudio: {
+      dados: vi.fn(() => new Promise(() => {})),
+      relatorio: vi.fn(() => new Promise(() => {})),
+      geracaoAtual: vi.fn(async () => null),
+      onGeracao: vi.fn(() => () => {})
+    }
+  })
+})
+
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+  vi.unstubAllGlobals()
 })
 
 const CONVERSATION: ModuleConversation = {

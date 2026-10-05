@@ -339,3 +339,1200 @@
     font-size: 1.625rem;
   }
 }
+
+/* ==========================================================================
+   Lote 2 — Dores, the folha da Dor, Relatórios, Leitura and Gráficos.
+   ========================================================================== */
+
+/* --- Shared pieces -------------------------------------------------------- */
+.ds-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A Fonte's tile: its glyph in its ink on its fill (`--source-*`, AA in both
+   themes). */
+.ds-fonte-tile {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--rounded-md);
+}
+
+.ds-fonte-tile[data-size='sm'] {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--rounded-sm);
+}
+
+.ds-fonte-tile[data-size='lg'] {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--rounded-lg);
+}
+
+.ds-fonte-tile[data-fonte='likert'] {
+  background: var(--source-likert-bg);
+  color: var(--source-likert-ink);
+}
+
+.ds-fonte-tile[data-fonte='voz'] {
+  background: var(--source-voz-bg);
+  color: var(--source-voz-ink);
+}
+
+.ds-fonte-tile[data-fonte='fullstory'] {
+  background: var(--source-fullstory-bg);
+  color: var(--source-fullstory-ink);
+}
+
+/* A card: the module's raised surface. */
+.ds-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+}
+
+/* Secondary buttons: the DS ghost draws its edge in `--border-strong`, which
+   is a wash (under 3:1); a control's edge has to be findable (C7c). */
+.ds-page .hds-btn-ghost.ds-btn-sec,
+.ds-folha .hds-btn-ghost.ds-btn-sec {
+  gap: 7px;
+  border: 1px solid var(--faint);
+  box-shadow: none;
+}
+
+.ds-page .hds-btn-ghost.ds-btn-sec:focus-visible,
+.ds-folha .hds-btn-ghost.ds-btn-sec:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The DS segmented track and thumb are drawn in hairlines; in the module they
+   are a control's edge and its "current" mark, so they take a 3:1 ink. */
+.ds-page .hds-seg,
+.ds-page .hds-seg-thumb {
+  border-color: var(--faint);
+}
+
+.ds-page .hds-seg-item[aria-checked='true'] {
+  font-weight: 600;
+}
+
+/* A text action inside a row ("Relatório"). */
+.ds-link {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.ds-link:hover {
+  color: var(--accent-tint-ink, var(--ink));
+}
+
+.ds-link:focus-visible,
+.ds-icon-btn:focus-visible,
+.ds-voltar:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ds-icon-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--faint);
+  border-radius: var(--rounded-md);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ds-icon-btn:hover {
+  background: var(--surface-2);
+}
+
+/* A pill of context ("Voz do Cliente · 1ª em Câmbio", "Tela Acompanhar"). */
+.ds-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-full);
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+
+/* The impact as a seal: the word carries it; the dot only repeats it. */
+.ds-impacto {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.ds-impacto::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid currentColor;
+  border-radius: var(--rounded-full);
+}
+
+.ds-impacto[data-impacto='alto'] {
+  border-color: var(--danger-ink);
+  color: var(--danger-ink);
+}
+
+.ds-impacto[data-impacto='alto']::before {
+  background: currentColor;
+}
+
+.ds-impacto[data-impacto='medio'] {
+  border-color: var(--warning-ink);
+  color: var(--warning-ink);
+}
+
+.ds-impacto[data-impacto='medio']::before {
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+
+/* --- A generation's steps (criterion 12) -------------------------------- */
+.ds-passos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+}
+
+.ds-passos-titulo {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-passos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-passo {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.ds-passo-marca {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--faint);
+  border-radius: var(--rounded-full);
+}
+
+.ds-passo[data-estado='feito'] {
+  color: var(--ink);
+}
+
+.ds-passo[data-estado='feito'] .ds-passo-marca {
+  border-color: var(--success-ink);
+  color: var(--success-ink);
+}
+
+/* The current step: the accent ring, turning — the motion is the only thing
+   that says "working"; the ring alone already says "here". */
+.ds-passo[data-estado='atual'] {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-passo[data-estado='atual'] .ds-passo-marca {
+  border-color: var(--accent);
+  border-right-color: transparent;
+  animation: ds-girar 0.9s linear infinite;
+}
+
+@keyframes ds-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-passo[data-estado='atual'] .ds-passo-marca {
+    border-right-color: var(--accent);
+    animation: none;
+  }
+}
+
+.ds-gerando {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-full);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+/* --- P8: Dores ------------------------------------------------------------ */
+.ds-onde {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.ds-onde-rotulo {
+  margin-right: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-onde-tela {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 12px;
+  border: 1px solid var(--faint);
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ds-onde-tela:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.ds-onde-tela:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ds-onde-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--rounded-full);
+  background: var(--surface-3);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The hottest screen: its count on the danger fill. */
+.ds-onde-tela[data-hot] .ds-onde-n {
+  background: var(--danger);
+  color: var(--danger-fill-ink);
+}
+
+.ds-onde-tela[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--selected-bg);
+  color: var(--accent-tint-ink, var(--ink));
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* A screen with no Dor: still on the journey, not to be chosen. Drawn in
+   `--muted` ink and a dashed edge rather than faded — it must stay legible. */
+.ds-onde-tela:disabled {
+  border-style: dashed;
+  color: var(--muted);
+  cursor: default;
+}
+
+.ds-colunas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--s-5);
+}
+
+.ds-coluna {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+.ds-coluna-cab {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.ds-coluna-titulos {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ds-coluna-titulo {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-coluna-meta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.ds-notas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-coluna-vazia {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px dashed var(--faint);
+  border-radius: var(--rounded-lg);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ds-coluna-vazia p {
+  margin: 0;
+}
+
+.ds-coluna-vazia-titulo {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* --- P9: the folha da Dor -------------------------------------------------- */
+.hds-sheet-content.ds-folha {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 92vw);
+  padding: 0;
+  overflow: hidden;
+}
+
+.ds-folha-cab {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-5) var(--s-5) var(--s-3);
+}
+
+.ds-folha-titulo {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.ds-folha-corpo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-height: 0;
+  padding: 0 var(--s-5) var(--s-5);
+  overflow-y: auto;
+}
+
+.ds-folha-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ds-fatos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin: 0;
+  padding: var(--s-3) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+/* The number above its caption, in the reading order of the page. */
+.ds-fato {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.ds-fato dt {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.ds-fato dd {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.ds-folha-resumo {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.ds-folha-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.ds-folha-bloco-titulo {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-folha-bloco-titulo small {
+  margin-left: 4px;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.ds-evid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+}
+
+.ds-evid-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.ds-evid-meta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.ds-evid-texto {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.ds-evid-sinal {
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+/* The score: five dots, the given ones filled in the Likert hue. */
+.ds-escala {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ds-escala i {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--source-likert);
+  border-radius: var(--rounded-full);
+}
+
+.ds-escala i[data-on] {
+  background: var(--source-likert);
+}
+
+.ds-escala em {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-transcricao {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ds-fala {
+  display: grid;
+  grid-template-columns: 44px 72px 1fr;
+  gap: var(--s-2);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.ds-fala time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.ds-fala b {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-fala p {
+  margin: 0;
+  color: var(--ink);
+}
+
+.ds-folha-vazio {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.ds-relacionadas {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-relacionada {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ds-relacionada:hover {
+  background: var(--surface-2);
+}
+
+.ds-relacionada:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.ds-relacionada-titulo {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The actions: a bar fixed at the panel's foot, outside the scroller. */
+.ds-folha-pe {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-5) var(--s-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.ds-folha-pe .hds-btn {
+  justify-content: center;
+}
+
+/* --- P10: Relatórios de Fonte -------------------------------------------- */
+.ds-rel-produto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.ds-rel-produto-titulo {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-rel-produto-titulo small {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.ds-rel-lista {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+  list-style: none;
+}
+
+.ds-rel-lista li + li {
+  border-top: 1px solid var(--border);
+}
+
+.ds-rel-linha {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+}
+
+.ds-rel-fonte,
+.ds-rel-destaque {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.ds-rel-fonte small,
+.ds-rel-destaque small {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.ds-rel-descricao {
+  color: var(--muted);
+}
+
+.ds-rel-acao {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --- P15: not found -------------------------------------------------------- */
+.ds-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  margin: var(--s-8) auto 0;
+  max-width: 44ch;
+  text-align: center;
+  color: var(--muted);
+}
+
+.ds-vazio p {
+  margin: 0;
+}
+
+.ds-vazio-titulo {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* --- P11: Relatório · Leitura --------------------------------------------- */
+.ds-relatorio-cab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.ds-voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ds-relatorio-id {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-4);
+}
+
+.ds-relatorio-titulos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ds-relatorio-meta {
+  max-width: 64ch;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ds-relatorio-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.ds-leitura {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s-4);
+}
+
+.ds-leitura-texto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-5);
+}
+
+.ds-destaque {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.ds-narrativa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* At most 66 characters a line (criterion 25): `ch` is the width of "0". */
+.ds-narrativa p {
+  max-width: 66ch;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.ds-metodo {
+  margin: 0;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.ds-metodo b {
+  color: var(--ink);
+}
+
+.ds-ranking {
+  overflow: hidden;
+}
+
+.ds-ranking-titulo {
+  margin: 0;
+  padding: var(--s-4) var(--s-4) var(--s-2);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-ranking-titulo small {
+  margin-left: 4px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.ds-ranking-lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-ranking-lista li + li {
+  border-top: 1px solid var(--border);
+}
+
+.ds-rank-linha {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ds-rank-linha:hover {
+  background: var(--surface-2);
+}
+
+.ds-rank-linha:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.ds-rank-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--rounded-md);
+  background: var(--surface-3);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-rank-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+
+.ds-rank-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* --- P12: Relatório · Gráficos -------------------------------------------- */
+.ds-graficos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.ds-graf-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.ds-graf-dor {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: min(360px, 100%);
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--faint);
+  border-radius: var(--rounded-md);
+  background: var(--surface);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.ds-graf-dor:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ds-graf-dor select {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 4px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  outline: none;
+}
+
+.ds-graf-dor option,
+.ds-graf-dor optgroup {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* A summary of at most 36em (criterion 27). */
+.ds-graf-resumo {
+  max-width: 36em;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.ds-graf-grade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: start;
+  gap: var(--s-4);
+}
+
+.ds-graf-card {
+  padding: var(--s-4);
+}
+
+.ds-insights {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ds-insights-cab {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--s-4);
+}
+
+.ds-insights-titulo {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-insights-descricao {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.ds-insight {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 2.4fr);
+  gap: var(--s-5);
+  padding: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+/* The category in focus: an accent bar on its leading edge, and the tint. */
+.ds-insight[aria-current='true'] {
+  background: var(--selected-bg);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.ds-insight-lado h3 {
+  margin: 0 0 var(--s-2);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ds-insight-fig {
+  display: flex;
+  gap: var(--s-4);
+  margin: 0;
+}
+
+.ds-insight-fig div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.ds-insight-fig dt {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.ds-insight[aria-current='true'] .ds-insight-fig dt {
+  color: var(--accent-tint-ink, var(--ink));
+}
+
+.ds-insight-fig dd {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.ds-insight-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.ds-insight-corpo p {
+  margin: 0;
+  max-width: 72ch;
+}
+
+.ds-insight-autor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.ds-insight-logo {
+  display: inline-flex;
+}
+
+/* --- The module's notices -------------------------------------------------- */
+.ds-avisos {
+  position: fixed;
+  right: var(--s-5);
+  bottom: var(--s-5);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: min(420px, calc(100vw - 32px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  outline: none;
+}
+
+.ds-aviso {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.ds-aviso-glifo {
+  display: inline-flex;
+  color: var(--success-ink);
+}
+
+.ds-aviso[data-tipo='falha'] .ds-aviso-glifo {
+  color: var(--danger-ink);
+}
+
+.ds-aviso-texto {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.ds-aviso-acao {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--faint);
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ds-aviso-acao:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* --- Narrow panes ---------------------------------------------------------- */
+@container (max-width: 980px) {
+  .ds-colunas,
+  .ds-leitura,
+  .ds-graf-grade {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ds-insight {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-2);
+  }
+
+  .ds-rel-linha {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .ds-rel-destaque {
+    grid-column: 2;
+  }
+}

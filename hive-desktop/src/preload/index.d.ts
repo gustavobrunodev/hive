@@ -37,7 +37,7 @@ import type { AgentInstallEvent } from '../main/agentInstaller'
 import type { ResolvedRoleAction, ResolvedShortcutSets } from '../main/roleCatalog'
 import type { ChatSessionMeta, StoredChatSession, StoredCompaction } from '../main/chatHistoryStore'
 import type { ModuleConversationMeta } from '../main/designStudio/conversations'
-import type { Catalogo } from '../main/designStudio/catalogo'
+import type { Catalogo, FonteId } from '../main/designStudio/catalogo'
 import type { RelatorioDeFonte } from '../main/designStudio/relatorioFormato'
 import type {
   EventoDeGeracao,
@@ -201,7 +201,11 @@ declare global {
         /** Every module conversation, tagged with its Produto folder (Landing 10). Unsorted. */
         conversations(): Promise<ModuleConversationMeta[]>
         /** The catalog and the Relatórios in use; creates the Produto folders (Landing 19). */
-        dados(): Promise<{ catalogo: Catalogo; relatorios: RelatorioDeFonte[] }>
+        dados(): Promise<{
+          catalogo: Catalogo
+          relatorios: RelatorioDeFonte[]
+          volumes: Record<string, Partial<Record<FonteId, number>>>
+        }>
         /** One Relatório by its path relative to `<raiz>`, or `null` when it is gone. */
         relatorio(caminho: string): Promise<RelatorioDeFonte | null>
         /** Plans a generation (Landing 18): turn id, prompt and scope — or `ocupado`. */

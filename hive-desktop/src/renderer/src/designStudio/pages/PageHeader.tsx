@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { t } from '../../i18n'
 
 /**
@@ -17,6 +18,8 @@ export interface PageHeaderProps {
   subtitle?: string
   /** Show the seal: the module navigation is out of sight. */
   seal: boolean
+  /** The page's own controls, on the trailing side beside the seal (the Produto picker). */
+  actions?: ReactNode
 }
 
 /**
@@ -25,16 +28,17 @@ export interface PageHeaderProps {
  * picker, the Leitura | Gráficos switch) join it — on one line while there is
  * room for it.
  */
-export function PageHeader({ title, subtitle, seal }: PageHeaderProps): React.JSX.Element {
+export function PageHeader({ title, subtitle, seal, actions }: PageHeaderProps): React.JSX.Element {
   return (
     <header className="ds-page-head">
       <div className="ds-page-titles">
         <h1 className="ds-page-title">{title}</h1>
         {subtitle !== undefined && <p className="ds-page-subtitle">{subtitle}</p>}
       </div>
-      {seal && (
+      {(seal || actions) && (
         <div className="ds-page-actions">
-          <SampleSeal />
+          {seal && <SampleSeal />}
+          {actions}
         </div>
       )}
     </header>

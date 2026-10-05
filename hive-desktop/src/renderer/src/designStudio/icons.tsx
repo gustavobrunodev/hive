@@ -60,3 +60,43 @@ export function RelatorioIcon({ size, ...rest }: IconProps): React.JSX.Element {
     </svg>
   )
 }
+
+/** Likert — a star: a score out of five. */
+export function LikertIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M8 2.2l1.75 3.6 3.95.55-2.86 2.77.68 3.93L8 11.2l-3.52 1.85.68-3.93L2.3 6.35l3.95-.55z" />
+    </svg>
+  )
+}
+
+/** Voz do Cliente — a headset: a call with an attendant. */
+export function VozIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M3 9.5V8a5 5 0 0 1 10 0v1.5" />
+      <path d="M3 9.25h1.75v3.5H3.75a.75.75 0 0 1-.75-.75zM13 9.25h-1.75v3.5h1a.75.75 0 0 0 .75-.75z" />
+      <path d="M11.25 12.75c0 1-1.25 1.5-3.25 1.5" />
+    </svg>
+  )
+}
+
+/** FullStory — a pointer with its click: what a session records. */
+export function FullStoryIcon({ size, ...rest }: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(size)} {...rest}>
+      <path d="M6 5.5l6.5 2.75-2.75 1-1 2.75z" />
+      <path d="M3.5 3.5l1 1M6.25 1.75v1.5M2.25 6h1.5" />
+    </svg>
+  )
+}
+
+/** The glyph of a Fonte, by id. */
+export function FonteIcon({
+  fonte,
+  ...rest
+}: IconProps & { fonte: 'likert' | 'voz' | 'fullstory' }): React.JSX.Element {
+  if (fonte === 'voz') return <VozIcon {...rest} />
+  if (fonte === 'fullstory') return <FullStoryIcon {...rest} />
+  return <LikertIcon {...rest} />
+}

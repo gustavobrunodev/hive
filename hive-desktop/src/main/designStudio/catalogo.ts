@@ -52,3 +52,33 @@ export function readCatalogo(resourcesDir: string): Catalogo {
   }
   return { produtos: raw.produtos, fontes: raw.fontes }
 }
+
+/**
+ * The volume each sample-data file declares — every Fonte's total in the
+ * period, by Produto `nome` (Landing 19). What "Lendo <volume> <unidade>" and
+ * "<volume> <unidade> no período" say before there is a Relatório. A file that
+ * cannot be read counts nothing rather than failing the module.
+ */
+export function readVolumes(
+  resourcesDir: string,
+  catalogo: Catalogo
+): Record<string, Partial<Record<FonteId, number>>> {
+  const volumes: Record<string, Partial<Record<FonteId, number>>> = {}
+  for (const produto of catalogo.produtos) {
+    volumes[produto.nome] = {}
+    for (const fonte of catalogo.fontes) {
+      try {
+        const file = JSON.parse(
+          readFileSync(
+            join(resourcesDir, 'dados-de-exemplo', produto.id, `${fonte.id}.json`),
+            'utf-8'
+          )
+        ) as { volume?: unknown }
+        if (typeof file.volume === 'number') volumes[produto.nome][fonte.id] = file.volume
+      } catch {
+        // Missing or unreadable: no volume to show.
+      }
+    }
+  }
+  return volumes
+}

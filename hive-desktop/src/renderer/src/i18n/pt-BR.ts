@@ -2923,25 +2923,206 @@ export const ptBR = {
       /** The prototype's "…e veja o Protótipo nascer no quadro" waits for task B. */
       subtitle: 'Converse com o agente e cite as Dores dos clientes.'
     },
+    /** The Produto picker on Dores (and, in lote 3, on the home). */
+    produto: {
+      label: 'Produto'
+    },
     dores: {
-      /** The page's frame. It becomes "Dores de <Produto>" once a Produto is chosen there. */
+      /** The page's frame, while the catalog has not arrived. */
       title: 'Dores',
+      titleProduto: (produto: string) => `Dores de ${produto}`,
       subtitle:
-        'O que os clientes sentiram, disseram e fizeram, uma coluna por Fonte. Toque numa nota para ver as Evidências; cite no chat para o agente resolver.'
+        'O que os clientes sentiram, disseram e fizeram, uma coluna por Fonte. Toque numa nota para ver as Evidências; cite no chat para o agente resolver.',
+      ondeDoi: 'Onde dói',
+      ondeDoiLabel: 'Onde dói: telas da jornada',
+      /** A screen's button: its name, how many Dores, and — once — that it is the hottest. */
+      tela: (tela: string, n: number, quente: boolean) =>
+        `${tela}: ${n} ${n === 1 ? 'Dor' : 'Dores'}${quente ? ', a tela mais quente' : ''}`,
+      verTodas: 'Ver todas',
+      noPeriodo: (volume: string, unidade: string) => `${volume} ${unidade} no período`,
+      relatorio: 'Relatório',
+      relatorioLabel: (fonte: string) => `Abrir o Relatório de ${fonte}`,
+      semRelatorio: (fonte: string) => `Ainda não há Relatório de ${fonte}.`,
+      semRelatorioFrase: 'O agente lê os dados do período, agrupa por tema e ranqueia as Dores.',
+      gerar: (fonte: string) => `Gerar Relatório de ${fonte}`,
+      nenhumaNaTela: (fonte: string, tela: string) => `Nenhuma Dor de ${fonte} na tela ${tela}.`,
+      colunas: 'Dores por Fonte'
+    },
+    /** A Dor as a note (`SourceNote`). */
+    nota: {
+      impacto: 'Impacto',
+      volume: (volume: string, unidade: string) => `${volume} ${unidade}`,
+      estavel: 'estável',
+      tendencia: (porcento: number) => `${porcento}%`,
+      /** Read by assistive tech beside the arrow, which says it to sighted readers. */
+      tendenciaLabel: (porcento: number) =>
+        porcento === 0 ? 'estável' : porcento > 0 ? `subiu ${porcento}%` : `caiu ${-porcento}%`
+    },
+    impacto: {
+      alto: 'Alto',
+      medio: 'Médio',
+      baixo: 'Baixo'
+    },
+    /** The folha da Dor (P9). */
+    folha: {
+      fechar: 'Fechar',
+      posicao: (fonte: string, rank: number, produto: string) =>
+        `${fonte} · ${rank}ª em ${produto}`,
+      tela: (tela: string) => `Tela ${tela}`,
+      impacto: (nivel: string) => `Impacto ${nivel.toLowerCase()}`,
+      fatos: 'Números da Dor',
+      mencoes: 'menções',
+      em90Dias: 'em 90 dias',
+      respostasLidas: 'respostas lidas',
+      ligacoes: 'ligações',
+      ligamDeNovo: 'ligam de novo',
+      clientesAfetados: 'clientes afetados',
+      sinal: 'sinal',
+      porcento: (n: number) => `${n}%`,
+      evidencias: 'Evidências',
+      evidenciasMeta: (k: number, volume: string) => `${k} de ${volume}, escolhidas pelo Relatório`,
+      nota: (n: number) => `Nota ${n} de 5`,
+      ligacao: (id: string) => `Ligação ${id}`,
+      ligouDeNovo: 'Ligou de novo',
+      motivo: (motivo: string) => `Motivo registrado: ${motivo}`,
+      sessao: (id: string) => `Sessão ${id}`,
+      sinalEm: (sinal: string, elemento: string) =>
+        `${sinal} em ${elemento.charAt(0).toLowerCase()}${elemento.slice(1)}`,
+      sessaoMeta: (dispositivo: string, tela: string, momento: string) =>
+        `${dispositivo} · tela ${tela} · aos ${momento}`,
+      mesmaTela: 'Na mesma tela',
+      nenhumaOutra: 'Nenhuma outra Dor nesta tela.',
+      citarNoChat: 'Citar no chat',
+      citarNestaConversa: 'Citar nesta conversa',
+      perguntar: 'Perguntar ao agente',
+      /** What "Perguntar ao agente" sends (criterion 22). */
+      pergunta: (titulo: string) => `Me explique a Dor “${titulo}” e o que você mudaria primeiro.`,
+      acoes: 'Ações da Dor',
+      carregando: 'Abrindo a Dor…'
+    },
+    /** A Relatório being generated (criteria 12–16). */
+    geracao: {
+      lendo: (volume: string, unidade: string) => `Lendo ${volume} ${unidade}`,
+      lendoSemVolume: 'Lendo os dados do período',
+      agrupando: 'Agrupando por tema',
+      ranqueando: 'Ranqueando as Dores',
+      escrevendo: 'Escrevendo a narrativa',
+      passosLabel: (fonte: string) => `Gerando o Relatório de ${fonte}`,
+      concluido: 'concluído',
+      gerandoN: (n: number) => `Gerando… ${n} de 4`,
+      pronto: (fonte: string, n: number) =>
+        `Relatório de ${fonte} pronto · ${n} ${n === 1 ? 'Dor ranqueada' : 'Dores ranqueadas'}`,
+      ocupado: 'Espere o Relatório em andamento terminar',
+      /** Why a generation failed, in the person's words — never the CLI's (criterion 15). */
+      erro: (fonte: string) =>
+        `O agente parou antes de terminar o Relatório de ${fonte}. Nada foi publicado.`,
+      interrompido: (fonte: string) =>
+        `A geração do Relatório de ${fonte} foi interrompida. Nada foi publicado.`,
+      formato: (fonte: string) =>
+        `O agente não entregou um Relatório de ${fonte} completo. Nada foi publicado.`,
+      tentarDeNovo: 'Tentar de novo',
+      avisos: 'Avisos do Design Studio',
+      dispensar: 'Dispensar aviso'
     },
     relatorios: {
       title: 'Relatórios de Fonte',
       subtitle:
-        'O que cada Fonte diz sobre cada Produto nos últimos 90 dias. É deste material que o agente parte para propor melhorias.'
+        'O que cada Fonte diz sobre cada Produto nos últimos 90 dias. É deste material que o agente parte para propor melhorias.',
+      descricao: (descricao: string) => `· ${descricao}`,
+      periodo: (produto: string, periodo: string) => `${produto} · ${periodo}`,
+      naoGerado: (produto: string) => `${produto} · ainda não gerado`,
+      meta: (volume: string, unidade: string, data: string) =>
+        `${volume} ${unidade} · gerado em ${data}`,
+      abrir: 'Abrir',
+      abrirLabel: (fonte: string, produto: string) => `Abrir o Relatório de ${fonte} de ${produto}`,
+      gerar: 'Gerar',
+      gerarLabel: (fonte: string, produto: string) => `Gerar o Relatório de ${fonte} de ${produto}`
     },
     relatorio: {
       title: (fonte: string) => `Relatório de ${fonte}`,
       /** A path outside the `<Produto>/relatorios/<fonte>/…` shape names no Fonte. */
-      titleNoFonte: 'Relatório'
+      titleNoFonte: 'Relatório',
+      voltar: 'Relatórios',
+      meta: (produto: string, periodo: string, data: string, agente: string) =>
+        `${produto} · ${periodo} · gerado em ${data} por ${agente} · dados de exemplo`,
+      vistas: 'Visão do Relatório',
+      leitura: 'Leitura',
+      graficos: 'Gráficos',
+      gerarDeNovo: 'Gerar de novo',
+      comoFoiFeito: 'Como foi feito.',
+      doresRanqueadas: 'Dores ranqueadas',
+      doresRanqueadasN: (n: number) => `· ${n}`,
+      telaDor: (tela: string) => `Tela ${tela}`,
+      naoEncontrado: 'Relatório não encontrado',
+      naoEncontradoFrase: 'O arquivo deste Relatório não está mais na pasta do Design Studio.',
+      verRelatorios: 'Ver Relatórios'
+    },
+    /** The Relatório's Gráficos view (P12). */
+    graficos: {
+      filtros: 'Filtros dos gráficos',
+      periodo: 'Período',
+      dias: (dias: number) => `${dias} dias`,
+      dor: 'Dor',
+      todas: 'Todas as Dores',
+      limpar: 'Limpar filtro',
+      resumo: (
+        periodo: string,
+        soma: string,
+        unidade: string,
+        categorias: number,
+        categoria: string,
+        porcento: number
+      ) =>
+        `Nos últimos ${periodo}, as Dores deste Relatório somam ${soma} ${unidade} em ${categorias} ${categorias === 1 ? 'categoria' : 'categorias'}. ${categoria} concentra ${porcento}%.`,
+      resumoDor: (
+        titulo: string,
+        soma: string,
+        unidade: string,
+        periodo: string,
+        porcento: number,
+        categoria: string
+      ) =>
+        `“${titulo}” soma ${soma} ${unidade} nos últimos ${periodo}, ${porcento}% de ${categoria}.`,
+      barras: 'Dores por categoria',
+      barrasDescricao: (unidade: string) =>
+        `${unidade.charAt(0).toUpperCase()}${unidade.slice(1)} no período. Toque numa categoria para destacá-la.`,
+      barra: (categoria: string, volume: string, unidade: string, porcento: number) =>
+        `${categoria}: ${volume} ${unidade}, ${porcento}%`,
+      linha: 'Recorrência semana a semana',
+      linhaCategoria: (categoria: string) =>
+        `Quantas vezes as Dores de ${categoria} aparecem por semana. Toque noutra categoria para trocar.`,
+      linhaDor: (titulo: string) => `Quantas vezes “${titulo}” aparece por semana.`,
+      linhaAria: (nome: string, de: string, para: string, unidade: string) =>
+        `Recorrência semanal de ${nome}: de ${de} para ${para} ${unidade} por semana. Use as setas para ler cada semana.`,
+      leitura: (semana: string, valor: string) => `${semana}: ${valor}`,
+      verTabela: 'Ver tabela',
+      verGrafico: 'Ver gráfico',
+      categoria: 'Categoria',
+      participacao: 'Participação',
+      semanaDe: 'Semana de',
+      porcento: (n: number) => `${n}%`,
+      insights: 'Insights por categoria',
+      insightsDescricao: (agente: string) =>
+        `O que o ${agente} lê em cada categoria, com o próximo passo sugerido.`,
+      doVolume: 'do volume',
+      noPeriodo: 'no período',
+      tendencia: (porcento: number) =>
+        porcento === 0 ? 'estável' : `${porcento > 0 ? '+' : '−'}${Math.abs(porcento)}%`
     },
     conversa: {
       /** A conversation the listing has not brought in (yet). */
       titleUnknown: 'Conversa'
+    },
+    /** Short month names, for dates written "29 set 2026". */
+    mes: (indice: number) =>
+      ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][
+        indice
+      ] ?? '',
+    periodo: (inicio: string, fim: string) => `${inicio} a ${fim}`,
+    /** The two agents the module runs (Unresolved 14), by the names the person knows them by. */
+    agentes: {
+      claude: 'Claude',
+      devin: 'Devin'
     },
     /** The three Fontes, keyed by the folder name decision 3 gives each. */
     fontes: {
