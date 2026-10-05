@@ -11,7 +11,9 @@ import type { Aviso, GeracaoStore } from './useGeracao'
  */
 export function AvisosDoModulo({ geracao }: { geracao: GeracaoStore }): React.JSX.Element {
   return (
-    <ToastProvider swipeDirection="right">
+    // `viewport={false}`: the provider would mount its own viewport, and Radix
+    // portals every toast into that one instead of ours below.
+    <ToastProvider swipeDirection="right" viewport={false}>
       {geracao.avisos.map((aviso) => (
         <AvisoToast key={aviso.id} aviso={aviso} geracao={geracao} />
       ))}

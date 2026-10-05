@@ -15,6 +15,8 @@
 //   window.__agentEvent(e)— one agent stream event
 //   window.__setReview(s) — push a pending Agent Change Review set
 //   window.__setDesignConversations(rows) — the Design Studio's "Recentes"
+//   window.__setDesignDados(d) — the Design Studio's catalog, Relatórios, volumes
+//   window.__designGeracao(e) — one generation event, as main broadcasts it
 async (page) => {
   const theme = globalThis.HIVE_THEME || 'dark'
   const sidebarView = globalThis.HIVE_SIDEBAR || 'explorer'
@@ -919,6 +921,36 @@ async (page) => {
     window.__setDesignConversations = (rows) => {
       state.designConversations = rows
     }
+    // Design Studio (lote 2): the catalog the module ships with, no Relatório
+    // until a scene plants some (`__setDesignDados`), and the generation's
+    // channel (`__designGeracao` pushes one event to every listener).
+    state.designDados = {
+      catalogo: {
+        produtos: [
+          { id: 'cambio', nome: 'Câmbio', descricao: 'Compra e envio de moeda estrangeira pelo app', telas: ['Simular', 'Revisar', 'Beneficiário', 'Confirmar', 'Acompanhar', 'Comprovante'] },
+          { id: 'extrato', nome: 'Extrato', descricao: 'Extrato da conta corrente no app e no internet banking', telas: ['Extrato', 'Período', 'Busca', 'Detalhe', 'Comprovante', 'Exportar'] },
+          { id: 'pix', nome: 'Pix', descricao: 'Transferências, agendamentos e chaves Pix', telas: ['Área Pix', 'Colar chave', 'Valor', 'Confirmar', 'Agendados', 'Minhas chaves'] }
+        ],
+        fontes: [
+          { id: 'likert', nome: 'Likert', descricao: 'Notas de 1 a 5 e comentários abertos deixados no app', unidade: 'respostas', unidadeDor: 'menções', unidadeNota: 'menções' },
+          { id: 'voz', nome: 'Voz do Cliente', descricao: 'Ligações em que clientes relatam dores a atendentes', unidade: 'ligações', unidadeDor: 'ligações', unidadeNota: 'ligações' },
+          { id: 'fullstory', nome: 'FullStory', descricao: 'Comportamento real de navegação e sinais de frustração', unidade: 'sessões', unidadeDor: 'clientes afetados', unidadeNota: 'clientes' }
+        ]
+      },
+      relatorios: [],
+      volumes: {
+        Câmbio: { likert: 6912, voz: 3205, fullstory: 48300 },
+        Extrato: { likert: 18240, voz: 4870, fullstory: 212400 },
+        Pix: { likert: 22480, voz: 6112, fullstory: 301800 }
+      }
+    }
+    const geracaoListeners = new Set()
+    window.__setDesignDados = (dados) => {
+      state.designDados = { ...state.designDados, ...dados }
+    }
+    window.__designGeracao = (evento) => {
+      for (const listener of geracaoListeners) listener(evento)
+    }
     window.__setReview = (snapshot) => {
       state.review = snapshot
       for (const cb of reviewListeners) cb({ workspace: '/ws', ...snapshot })
@@ -1423,7 +1455,23 @@ async (page) => {
       // has rows to measure; `window.__setDesignConversations(rows)` swaps them
       // (an empty array is the "Nenhuma conversa ainda" state).
       designStudio: {
-        conversations: () => Promise.resolve(state.designConversations)
+        conversations: () => Promise.resolve(state.designConversations),
+        dados: () => Promise.resolve(state.designDados),
+        relatorio: (caminho) =>
+          Promise.resolve(state.designDados.relatorios.find((r) => r.caminho === caminho) ?? null),
+        planejarGeracao: (pedido) =>
+          Promise.resolve({
+            ok: true,
+            turnId: 'ds-pass',
+            prompt: `relatorio-${pedido.fonte}`,
+            scope: { cwd: '/docs', readRoots: [], writeRoots: [], commands: [] }
+          }),
+        abandonarGeracao: () => Promise.resolve(),
+        geracaoAtual: () => Promise.resolve(null),
+        onGeracao: (listener) => {
+          geracaoListeners.add(listener)
+          return () => geracaoListeners.delete(listener)
+        }
       },
       chatHistory: {
         // The full `ChatSessionMeta` the history rows render — a list that

@@ -1465,10 +1465,12 @@
 }
 
 /* --- The module's notices -------------------------------------------------- */
+/* Above the Hive's floating "Perguntar à base" button, never over it — the
+   first pass caught the notices covering it. */
 .ds-avisos {
   position: fixed;
   right: var(--s-5);
-  bottom: var(--s-5);
+  bottom: 96px;
   z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
