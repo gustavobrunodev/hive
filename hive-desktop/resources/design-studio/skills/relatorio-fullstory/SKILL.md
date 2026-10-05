@@ -17,7 +17,7 @@ comando antes ou depois:
 node "<esta skill>/scripts/relatorio.mjs" --dados "<dados>" --saida "<cópia de trabalho>" --agente "<seu nome>" --modelo "<seu modelo>"
 ```
 
-O script lê os sessões do período (90 dias até hoje), agrupa por tema,
+O script lê as sessões do período (90 dias até hoje), agrupa por tema,
 ranqueia as Dores e grava o rascunho na cópia de trabalho, com todo o front
 matter pronto. Ele só grava dentro de `relatorios/` da pasta do Produto.
 

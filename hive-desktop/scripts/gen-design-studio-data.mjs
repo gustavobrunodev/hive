@@ -18,6 +18,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import * as prettier from 'prettier'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'resources', 'design-studio')
 
@@ -1816,16 +1817,23 @@ function arquivoDeDados(produto, fonte) {
   }
 }
 
-function escrever(caminho, valor) {
+/**
+ * Writes one file in the repository's own JSON style (Prettier), so a
+ * regeneration produces the committed bytes and the commit hook has nothing
+ * to rewrite.
+ */
+async function escrever(caminho, valor) {
   const destino = join(ROOT, caminho)
   mkdirSync(dirname(destino), { recursive: true })
-  writeFileSync(destino, `${JSON.stringify(valor, null, 1)}\n`, 'utf-8')
+  const config = (await prettier.resolveConfig(destino)) ?? {}
+  const texto = await prettier.format(JSON.stringify(valor, null, 2), { ...config, parser: 'json' })
+  writeFileSync(destino, texto, 'utf-8')
 }
 
-escrever('catalogo.json', { formato: 'catalogo/1', produtos: PRODUTOS, fontes: FONTES })
+await escrever('catalogo.json', { formato: 'catalogo/1', produtos: PRODUTOS, fontes: FONTES })
 for (const produto of PRODUTOS) {
   for (const fonte of FONTES) {
-    escrever(
+    await escrever(
       join('dados-de-exemplo', produto.id, `${fonte.id}.json`),
       arquivoDeDados(produto, fonte)
     )
