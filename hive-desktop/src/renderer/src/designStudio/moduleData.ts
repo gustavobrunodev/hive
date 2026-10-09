@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useConversas, type ConversasStore } from './useConversas'
 import { useGeracao, type GeracaoStore } from './useGeracao'
 import { useRascunhos, type RascunhoStore } from './useRascunhos'
 import type { FonteId } from './model'
@@ -39,6 +40,8 @@ export interface ModuleData {
   recarregar: () => void
   geracao: GeracaoStore
   rascunhos: RascunhoStore
+  /** The module's conversations while the Hive is open (task 1). */
+  conversas: ConversasStore
   folha: FolhaState
   /** The Produto the Dores page shows — set from outside too ("Ver todas" on the home). */
   doresProduto: string | null
@@ -70,7 +73,11 @@ function useFolha(): FolhaState {
   return useMemo(() => ({ ...state, abrir, fechar }), [state, abrir, fechar])
 }
 
-export function useModuleData(): ModuleData {
+/**
+ * `aoMudarConversas` is told when a conversation was started or answered,
+ * so whoever lists them ("Recentes") can read the list again.
+ */
+export function useModuleData(aoMudarConversas?: () => void): ModuleData {
   const [dados, setDados] = useState<{
     catalogo: Catalogo | null
     relatorios: readonly RelatorioDeFonte[] | null
@@ -116,6 +123,7 @@ export function useModuleData(): ModuleData {
   const geracao = useGeracao(recarregar)
   const rascunhos = useRascunhos()
   const folha = useFolha()
+  const conversas = useConversas(geracao, aoMudarConversas)
 
   return useMemo(
     () => ({
@@ -127,10 +135,22 @@ export function useModuleData(): ModuleData {
       recarregar,
       geracao,
       rascunhos,
+      conversas,
       folha,
       doresProduto,
       setDoresProduto
     }),
-    [dados, volumeDe, relatorioEm, carregar, recarregar, geracao, rascunhos, folha, doresProduto]
+    [
+      dados,
+      volumeDe,
+      relatorioEm,
+      carregar,
+      recarregar,
+      geracao,
+      rascunhos,
+      conversas,
+      folha,
+      doresProduto
+    ]
   )
 }

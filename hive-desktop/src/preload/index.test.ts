@@ -484,6 +484,44 @@ describe('preload: window.hive bridge', () => {
     })
   })
 
+  // Design Studio (task 1): the conversa do Produto. Same shape as the
+  // generation: requests on their own channels, replies on a listener of
+  // their own with no start/stop handshake (one agent subscription per window).
+  describe('hive.designStudio (conversa do Produto)', () => {
+    type DesignStudioBridge = Record<string, (...args: unknown[]) => unknown>
+    const ds = (): DesignStudioBridge =>
+      (exposedGlobals().get('hive') as { designStudio: DesignStudioBridge }).designStudio
+
+    it.each([
+      ['planejarConversa', [{ produto: 'Pix', conversa: null }], 'designStudio:planejarConversa'],
+      ['abandonarConversa', ['turno-1'], 'designStudio:abandonarConversa'],
+      ['novaConversa', ['Pix', 'Quero', 'Quero'], 'designStudio:novaConversa'],
+      ['lerConversa', ['Pix', 'c1'], 'designStudio:lerConversa'],
+      ['colar', ['print.png', new ArrayBuffer(2)], 'designStudio:colar']
+    ])('%s() invokes its channel with its arguments', async (method, args, channel) => {
+      await expect(ds()[method](...args)).resolves.toBe(`invoked:${channel}`)
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith(channel, ...args)
+    })
+
+    it('onConversa relays each reply event, and unsubscribing removes only its listener', () => {
+      const onEvent = vi.fn()
+      const sendsBefore = vi.mocked(ipcRenderer.send).mock.calls.length
+      const unsubscribe = ds().onConversa(onEvent) as () => void
+      const listener = vi
+        .mocked(ipcRenderer.on)
+        .mock.calls.find(([ch]) => ch === 'designStudio:conversa')?.[1] as (
+        event: unknown,
+        evento: unknown
+      ) => void
+      listener({}, { turnId: 't', estado: 'escrevendo', texto: 'oi' })
+      expect(onEvent).toHaveBeenCalledWith({ turnId: 't', estado: 'escrevendo', texto: 'oi' })
+      unsubscribe()
+      expect(ipcRenderer.removeListener).toHaveBeenCalledWith('designStudio:conversa', listener)
+      // No handshake at all: subscribing and leaving send nothing to main.
+      expect(vi.mocked(ipcRenderer.send).mock.calls.length).toBe(sendsBefore)
+    })
+  })
+
   it('hive.workflows.list(workspace) invokes "workflows:list" with workspace', async () => {
     const hive = exposedGlobals().get('hive') as {
       workflows: { list: (w: string) => Promise<unknown> }

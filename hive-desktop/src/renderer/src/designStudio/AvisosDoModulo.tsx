@@ -1,11 +1,12 @@
 import { Toast, ToastProvider, ToastViewport } from '@hive/design-system'
 import { t } from '../i18n'
-import { AlertTriangleIcon, CheckCircleIcon, CloseIcon } from '../ui/icons'
+import { AlertTriangleIcon, CheckCircleIcon, CloseIcon, InfoIcon } from '../ui/icons'
 import type { Aviso, GeracaoStore } from './useGeracao'
 
 /**
  * The module's notices (criteria 13, 15, 16): "pronto", why a generation
- * failed — with "Tentar de novo" — and "wait for the one in progress".
+ * failed — with "Tentar de novo" — and "wait for the one in progress"; and the
+ * chat field's own (task 1): "<Agente> <Modelo> vai responder", the Ctrl+V hint.
  * A success goes away on its own; a failure stays until dismissed, because the
  * person has a decision to make about it.
  */
@@ -40,7 +41,7 @@ function AvisoToast({
       }}
     >
       <span className="ds-aviso-glifo" aria-hidden="true">
-        {falha ? <AlertTriangleIcon size={15} /> : <CheckCircleIcon size={15} />}
+        <AvisoGlifo tipo={aviso.tipo} />
       </span>
       <span className="ds-aviso-texto">{aviso.texto}</span>
       {aviso.repetir && (
@@ -66,4 +67,10 @@ function AvisoToast({
       </button>
     </Toast>
   )
+}
+
+function AvisoGlifo({ tipo }: { tipo: Aviso['tipo'] }): React.JSX.Element {
+  if (tipo === 'falha') return <AlertTriangleIcon size={15} />
+  if (tipo === 'info') return <InfoIcon size={15} />
+  return <CheckCircleIcon size={15} />
 }

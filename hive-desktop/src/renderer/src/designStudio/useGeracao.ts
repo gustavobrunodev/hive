@@ -29,7 +29,7 @@ export interface GeracaoEmCurso {
 /** A notice the module shows over its pages. */
 export interface Aviso {
   id: number
-  tipo: 'pronto' | 'falha' | 'ocupado'
+  tipo: 'pronto' | 'falha' | 'ocupado' | 'info'
   texto: string
   /** A failure offers "Tentar de novo" for the same Produto and Fonte (criterion 15). */
   repetir?: { produto: string; fonte: FonteId }
@@ -37,8 +37,13 @@ export interface Aviso {
 
 export interface GeracaoStore {
   emCurso: GeracaoEmCurso | null
-  /** Asks for a Relatório — "Gerar", "Gerar Relatório de <Fonte>", "Gerar de novo". */
-  pedir: (produto: string, fonte: FonteId) => void
+  /**
+   * Asks for a Relatório — "Gerar", "Gerar Relatório de <Fonte>", "Gerar de
+   * novo". `false` when it was refused because another one is running.
+   */
+  pedir: (produto: string, fonte: FonteId) => boolean
+  /** A notice of the module's own that is not about a generation (the chat field's). */
+  informar: (texto: string) => void
   avisos: readonly Aviso[]
   dispensar: (id: number) => void
 }
@@ -125,7 +130,7 @@ export function useGeracao(onPronto: () => void): GeracaoStore {
     (produto: string, fonte: FonteId) => {
       if (lock.current) {
         avisar({ tipo: 'ocupado', texto: t('designStudio.geracao.ocupado') })
-        return
+        return false
       }
       lock.current = true
       void (async () => {
@@ -158,13 +163,19 @@ export function useGeracao(onPronto: () => void): GeracaoStore {
           repetir: { produto, fonte }
         })
       })
+      return true
     },
     [aoEvento, avisar]
   )
+
+  const informar = useCallback((texto: string) => avisar({ tipo: 'info', texto }), [avisar])
 
   const dispensar = useCallback((id: number) => {
     setAvisos((current) => current.filter((aviso) => aviso.id !== id))
   }, [])
 
-  return useMemo(() => ({ emCurso, pedir, avisos, dispensar }), [emCurso, pedir, avisos, dispensar])
+  return useMemo(
+    () => ({ emCurso, pedir, informar, avisos, dispensar }),
+    [emCurso, pedir, informar, avisos, dispensar]
+  )
 }

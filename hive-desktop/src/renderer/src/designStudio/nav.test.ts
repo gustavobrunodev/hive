@@ -60,6 +60,7 @@ function storeWith(overrides: Partial<DesignStudioStore> = {}): DesignStudioStor
     pageRoutes,
     conversations: [],
     loadedAt: NOW,
+    recarregar: vi.fn(),
     ...overrides
   }
 }

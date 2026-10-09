@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, render, within } from '@testing-library/react'
 import { DesignStudioShell } from './DesignStudioShell'
+import { pontesDaConversa, pontesDoCampo } from './__tests__/fixtures'
 import type { DesignStudioStore, ModuleConversation } from './useDesignStudio'
 import type { DesignPage, DesignRoute } from './routes'
 
@@ -20,11 +21,14 @@ beforeEach(() => {
   // The module's data never arrives here: every page stays in the frame it
   // draws while loading — the frame these cases are about.
   vi.stubGlobal('hive', {
+    // The chat field's own bridges (task 1): dictation, the agent picker.
+    ...pontesDoCampo(),
     designStudio: {
       dados: vi.fn(() => new Promise(() => {})),
       relatorio: vi.fn(() => new Promise(() => {})),
       geracaoAtual: vi.fn(async () => null),
-      onGeracao: vi.fn(() => () => {})
+      onGeracao: vi.fn(() => () => {}),
+      ...pontesDaConversa().metodos
     }
   })
 })
@@ -65,6 +69,7 @@ function storeWith(overrides: Partial<DesignStudioStore> = {}): DesignStudioStor
     pageRoutes,
     conversations: [CONVERSATION],
     loadedAt: NOW,
+    recarregar: vi.fn(),
     ...overrides
   }
 }

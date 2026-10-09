@@ -40,6 +40,12 @@ import type { ModuleConversationMeta } from '../main/designStudio/conversations'
 import type { Catalogo, FonteId } from '../main/designStudio/catalogo'
 import type { RelatorioDeFonte } from '../main/designStudio/relatorioFormato'
 import type {
+  ConversaGuardada,
+  EventoDeConversa,
+  PedidoDeConversa,
+  PlanoDeConversa
+} from '../main/designStudio/conversaTurno'
+import type {
   EventoDeGeracao,
   PedidoDeGeracao,
   PlanoDeGeracao
@@ -216,6 +222,21 @@ declare global {
         geracaoAtual(): Promise<EventoDeGeracao | null>
         /** Subscribes to the generation's life; returns the unsubscribe. */
         onGeracao(onEvent: (evento: EventoDeGeracao) => void): () => void
+        /** Plans a conversa do Produto turn: creates the conversation when needed, records the person's line. */
+        planejarConversa(pedido: PedidoDeConversa): Promise<PlanoDeConversa>
+        /** The send never reached an agent: main forgets the turn. */
+        abandonarConversa(turnId: string): Promise<void>
+        /** The guided first Relatório: a conversation with the person's line and no turn. */
+        novaConversa(produto: string, texto: string, titulo: string): Promise<string | null>
+        /** A stored conversation, as a reopened one draws it. */
+        lerConversa(produto: string, conversa: string): Promise<ConversaGuardada | null>
+        /** A pasted print's bytes, written to a file that can be attached. */
+        colar(
+          nome: string,
+          bytes: ArrayBuffer
+        ): Promise<{ path: string; name: string; size: number }>
+        /** Subscribes to the conversation turns' replies; returns the unsubscribe. */
+        onConversa(onEvent: (evento: EventoDeConversa) => void): () => void
       }
       /** App self-update (app-settings): version info + user-driven update flow — see preload/index.ts for the channel design. */
       app: {

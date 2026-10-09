@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { ClaudeAuthSession } from '../claudeAuth/useClaudeAuth'
 import { AvisosDoModulo } from './AvisosDoModulo'
 import { FolhaDor } from './FolhaDor'
 import { ModuleDataContext, useModuleData } from './moduleData'
@@ -19,6 +20,12 @@ export interface DesignStudioShellProps {
    * on screen. While it is not, each page shows the seal in its own header.
    */
   navVisible: boolean
+  /**
+   * The Hive's Claude account (held by the workbench, which owns its one login
+   * subscription): a conversation turn that failed for want of an account
+   * offers the same repair as the Hive chat (Unresolved 2).
+   */
+  claudeAuth?: ClaudeAuthSession
 }
 
 /** The conversation a Conversa route names, out of the listing. */
@@ -40,11 +47,12 @@ function pageBody(
   route: DesignRoute,
   store: DesignStudioStore,
   userName: string | null,
-  seal: boolean
+  seal: boolean,
+  claudeAuth: ClaudeAuthSession | undefined
 ): ReactNode {
   switch (route.pagina) {
     case 'inicio':
-      return <InicioPage userName={userName} seal={seal} />
+      return <InicioPage userName={userName} seal={seal} navigate={store.navigate} />
     case 'dores':
       return <DoresPage seal={seal} navigate={store.navigate} />
     case 'relatorios':
@@ -52,7 +60,16 @@ function pageBody(
     case 'relatorio':
       return <RelatorioPage relatorio={route.relatorio} seal={seal} navigate={store.navigate} />
     case 'conversa':
-      return <ConversaPage conversation={findConversation(store, route)} seal={seal} />
+      return (
+        <ConversaPage
+          produto={route.produto}
+          conversa={route.conversa}
+          conversation={findConversation(store, route)}
+          seal={seal}
+          navigate={store.navigate}
+          claudeAuth={claudeAuth}
+        />
+      )
   }
 }
 
@@ -85,10 +102,11 @@ function layerKey(route: DesignRoute): string {
 export function DesignStudioShell({
   store,
   userName,
-  navVisible
+  navVisible,
+  claudeAuth
 }: DesignStudioShellProps): React.JSX.Element {
   const seal = !navVisible
-  const dados = useModuleData()
+  const dados = useModuleData(store.recarregar)
   const layers = DESIGN_PAGES.filter((page) => store.mountedPages.includes(page))
     .map((page) => store.pageRoutes[page])
     .filter((route): route is DesignRoute => route !== undefined)
@@ -102,7 +120,7 @@ export function DesignStudioShell({
             data-page={route.pagina}
             data-active={route.pagina === store.route.pagina || undefined}
           >
-            {pageBody(route, store, userName, seal)}
+            {pageBody(route, store, userName, seal, claudeAuth)}
           </div>
         ))}
       </div>

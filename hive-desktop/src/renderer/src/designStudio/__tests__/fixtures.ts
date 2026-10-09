@@ -1,9 +1,11 @@
-import { createElement } from 'react'
+import { createElement, useEffect, useRef } from 'react'
 import { render, type RenderResult } from '@testing-library/react'
 import { vi } from 'vitest'
+import type { ClaudeAuthSession } from '../../claudeAuth/useClaudeAuth'
+import { DesignStudioNav } from '../DesignStudioNav'
 import { DesignStudioShell } from '../DesignStudioShell'
 import type { DesignPage, DesignRoute } from '../routes'
-import type { DesignStudioStore } from '../useDesignStudio'
+import { useDesignStudio, type DesignStudioStore } from '../useDesignStudio'
 import type {
   Catalogo,
   DadosDoModulo,
@@ -177,9 +179,141 @@ export function relatorio(
   }
 }
 
+type DesignStudioBridge = Window['hive']['designStudio']
+export type EventoDeConversa = Parameters<Parameters<DesignStudioBridge['onConversa']>[0]>[0]
+export type ConversaGuardada = NonNullable<Awaited<ReturnType<DesignStudioBridge['lerConversa']>>>
+
+/** What each module agent's CLI reports it can run: two models each, so a switch shows. */
+export const CAPACIDADES: Record<string, { models: Array<{ id: string; label: string }> }> = {
+  'claude-cli': {
+    models: [
+      { id: 'sonnet', label: 'Sonnet' },
+      { id: 'opus', label: 'Opus' }
+    ]
+  },
+  devin: {
+    models: [
+      { id: 'swe-1-5', label: 'SWE-1.5' },
+      { id: 'adaptive', label: 'Adaptive' }
+    ]
+  },
+  'github-copilot': { models: [{ id: 'gpt-5', label: 'GPT-5' }] }
+}
+
+/**
+ * The parts of `window.hive` every chat field reaches — dictation, the agent
+ * picker, attachments — answering like a machine with a model installed and
+ * the three agents available. Spread into a case's own stub.
+ */
+export function pontesDoCampo(send: ReturnType<typeof vi.fn> = vi.fn(async () => undefined)): {
+  asr: Record<string, unknown>
+  fs: { pathForFile: ReturnType<typeof vi.fn> }
+  agent: Record<string, unknown>
+  profile: Record<string, unknown>
+} {
+  return {
+    asr: {
+      readiness: vi.fn(async () => ({ installed: true, model: null, runtime: null })),
+      onPhase: vi.fn(() => () => {}),
+      warm: vi.fn(async () => undefined),
+      transcribe: vi.fn(async () => ''),
+      downloads: vi.fn(async () => []),
+      onDownloads: vi.fn(() => () => {}),
+      onDownloadSettled: vi.fn(() => () => {}),
+      startDownload: vi.fn(async () => undefined),
+      cancelDownload: vi.fn(async () => undefined),
+      dismissDownload: vi.fn(async () => undefined)
+    },
+    fs: { pathForFile: vi.fn(() => '') },
+    agent: {
+      send,
+      interrupt: vi.fn(async () => undefined),
+      chooseAttachments: vi.fn(async () => []),
+      pins: vi.fn(async () => ({ 'claude-cli': { model: 'sonnet', effort: null } })),
+      capabilities: vi.fn(async (id: string) => ({
+        models: CAPACIDADES[id]?.models ?? [],
+        efforts: [],
+        supportsAttachments: true
+      }))
+    },
+    profile: {
+      getAgent: vi.fn(async () => 'claude-cli'),
+      agents: vi.fn(async () => [
+        { id: 'claude-cli', available: true },
+        { id: 'devin', available: true },
+        { id: 'github-copilot', available: true }
+      ])
+    }
+  }
+}
+
+/** The conversation half of `window.hive.designStudio`, answering like main's service. */
+export function pontesDaConversa(guardadas: Record<string, ConversaGuardada> = {}): {
+  emitirConversa: (evento: EventoDeConversa) => void
+  metodos: Pick<
+    DesignStudioBridge,
+    | 'planejarConversa'
+    | 'abandonarConversa'
+    | 'novaConversa'
+    | 'lerConversa'
+    | 'colar'
+    | 'onConversa'
+  >
+} {
+  const ouvintes = new Set<(evento: EventoDeConversa) => void>()
+  let turno = 0
+  let nova = 0
+  return {
+    emitirConversa: (evento) => {
+      for (const ouvinte of ouvintes) ouvinte(evento)
+    },
+    metodos: {
+      planejarConversa: vi.fn(
+        async (pedido: Parameters<DesignStudioBridge['planejarConversa']>[0]) => {
+          turno += 1
+          return {
+            ok: true as const,
+            conversa: pedido.conversa ?? `conversa-${turno}`,
+            turnId: `turno-conversa-${turno}`,
+            prompt: `Prompt da conversa: ${pedido.texto}`,
+            scope: {
+              cwd: `/docs/Design Studio/${pedido.produto}`,
+              readRoots: [`/docs/Design Studio/${pedido.produto}/relatorios`],
+              writeRoots: [],
+              commands: []
+            },
+            resume: null,
+            freshSession: true,
+            anexos: pedido.anexos.map((anexo) => `/copias/${anexo.name}`)
+          }
+        }
+      ),
+      abandonarConversa: vi.fn(async () => undefined),
+      novaConversa: vi.fn(async () => {
+        nova += 1
+        return `guiada-${nova}`
+      }),
+      lerConversa: vi.fn(async (_produto: string, id: string) => guardadas[id] ?? null),
+      colar: vi.fn(async (nome: string, bytes: ArrayBuffer) => ({
+        path: `/colados/${nome}`,
+        name: nome,
+        size: bytes.byteLength
+      })),
+      onConversa: vi.fn((ouvinte: (evento: EventoDeConversa) => void) => {
+        ouvintes.add(ouvinte)
+        return () => ouvintes.delete(ouvinte)
+      })
+    }
+  }
+}
+
 export interface Bridge {
   /** Fires one generation event at every `onGeracao` listener, as main would. */
   emit: (evento: EventoDeGeracao) => void
+  /** Fires one conversation event at every `onConversa` listener, as main would. */
+  emitirConversa: (evento: EventoDeConversa) => void
+  conversa: ReturnType<typeof pontesDaConversa>['metodos']
+  campo: ReturnType<typeof pontesDoCampo>
   dados: ReturnType<typeof vi.fn>
   relatorio: ReturnType<typeof vi.fn>
   planejarGeracao: ReturnType<typeof vi.fn>
@@ -200,6 +334,7 @@ export function stubBridge(
     porCaminho?: Record<string, RelatorioDeFonte | null>
     hiveDefault?: string | null
     send?: () => Promise<void>
+    guardadas?: Record<string, ConversaGuardada>
   } = {}
 ): Bridge {
   let relatorios = options.relatorios ?? []
@@ -225,7 +360,13 @@ export function stubBridge(
   )
   const abandonarGeracao = vi.fn(async () => undefined)
   const send = vi.fn(options.send ?? (async () => undefined))
+  const campo = pontesDoCampo(send)
+  const conversa = pontesDaConversa(options.guardadas)
+  campo.profile.getAgent = vi.fn(async () =>
+    options.hiveDefault === undefined ? 'claude-cli' : options.hiveDefault
+  )
   vi.stubGlobal('hive', {
+    ...campo,
     designStudio: {
       conversations: vi.fn(async () => []),
       dados,
@@ -236,26 +377,17 @@ export function stubBridge(
       onGeracao: vi.fn((listener: (evento: EventoDeGeracao) => void) => {
         listeners.add(listener)
         return () => listeners.delete(listener)
-      })
-    },
-    agent: {
-      send,
-      pins: vi.fn(async () => ({ 'claude-cli': { model: 'sonnet', effort: null } }))
-    },
-    profile: {
-      getAgent: vi.fn(async () =>
-        options.hiveDefault === undefined ? 'claude-cli' : options.hiveDefault
-      ),
-      agents: vi.fn(async () => [
-        { id: 'claude-cli', available: true },
-        { id: 'devin', available: true }
-      ])
+      }),
+      ...conversa.metodos
     }
   })
   return {
     emit: (evento) => {
       for (const listener of listeners) listener(evento)
     },
+    emitirConversa: conversa.emitirConversa,
+    conversa: conversa.metodos,
+    campo,
     dados,
     relatorio: relatorioFn,
     planejarGeracao,
@@ -276,7 +408,8 @@ export function storeAt(route: DesignRoute, navigate = vi.fn()): DesignStudioSto
     mountedPages: [route.pagina],
     pageRoutes,
     conversations: [],
-    loadedAt: 0
+    loadedAt: 0,
+    recarregar: vi.fn()
   }
 }
 
@@ -296,4 +429,84 @@ export function activePage(): HTMLElement {
   const page = document.querySelector<HTMLElement>('[data-page][data-active]')
   if (!page) throw new Error('no active page')
   return page
+}
+
+/**
+ * jsdom ships no `PointerEvent` (testing-library then drops `button`, which
+ * Radix's menu triggers read), no `ResizeObserver`, no pointer capture and no
+ * `scrollIntoView` — every one of which the field's menus and pickers call.
+ */
+export function prepararDom(): void {
+  class PointerEventStub extends MouseEvent {
+    readonly pointerId: number
+    readonly pointerType: string
+    constructor(
+      type: string,
+      init: MouseEventInit & { pointerId?: number; pointerType?: string } = {}
+    ) {
+      super(type, init)
+      this.pointerId = init.pointerId ?? 0
+      this.pointerType = init.pointerType ?? 'mouse'
+    }
+  }
+  // Assigned, not `vi.stubGlobal`: the suites unstub their globals after each
+  // case, and this has to outlive every one of them.
+  globalThis.PointerEvent ??= PointerEventStub as unknown as typeof PointerEvent
+  globalThis.ResizeObserver ??= class {
+    observe = vi.fn()
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+  } as unknown as typeof ResizeObserver
+  Element.prototype.scrollIntoView = vi.fn()
+  Element.prototype.hasPointerCapture = vi.fn(() => false)
+  Element.prototype.setPointerCapture = vi.fn()
+  Element.prototype.releasePointerCapture = vi.fn()
+  // jsdom's File has no `arrayBuffer()` (Chromium's does): read it the old way.
+  Blob.prototype.arrayBuffer ??= function (this: Blob): Promise<ArrayBuffer> {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as ArrayBuffer)
+      reader.readAsArrayBuffer(this)
+    })
+  }
+}
+
+export interface OpcoesDoModulo {
+  inicio?: DesignRoute
+  claudeAuth?: ClaudeAuthSession
+}
+
+/** The module as the workbench mounts it: the real store, so a click really moves pages; its navigation beside it. */
+function ModuloVivo({
+  inicio,
+  claudeAuth
+}: Required<Pick<OpcoesDoModulo, 'inicio'>> & OpcoesDoModulo): React.JSX.Element {
+  const store = useDesignStudio(true)
+  const { navigate } = store
+  const feito = useRef(false)
+  useEffect(() => {
+    if (feito.current) return
+    feito.current = true
+    if (inicio.pagina !== 'inicio') navigate(inicio)
+  }, [inicio, navigate])
+  return createElement(
+    'div',
+    null,
+    createElement(DesignStudioNav, { store }),
+    createElement(DesignStudioShell, { store, userName: 'Marina', navVisible: false, claudeAuth })
+  )
+}
+
+export function renderModuloVivo(
+  inicio: DesignRoute = { pagina: 'inicio' },
+  opcoes: Omit<OpcoesDoModulo, 'inicio'> = {}
+): RenderResult {
+  return render(createElement(ModuloVivo, { inicio, ...opcoes }))
+}
+
+/** The page layer of `pagina`, mounted or not on screen. */
+export function camada(pagina: DesignPage): HTMLElement {
+  const layer = document.querySelector<HTMLElement>(`[data-page="${pagina}"]`)
+  if (!layer) throw new Error(`no layer ${pagina}`)
+  return layer
 }

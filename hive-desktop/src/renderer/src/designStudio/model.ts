@@ -66,6 +66,8 @@ export interface ModuleAgent {
   id: ModuleAgentId
   nome: string
   modelo: string | null
+  /** The effort rung the chat field chose; absent lets the CLI decide. */
+  esforco?: string | null
 }
 
 function isModuleAgent(id: string | null): id is ModuleAgentId {

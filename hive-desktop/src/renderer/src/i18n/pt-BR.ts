@@ -2921,7 +2921,73 @@ export const ptBR = {
           ? `${salutation}, ${name}. O que vamos melhorar hoje?`
           : `${salutation}. O que vamos melhorar hoje?`,
       /** The prototype's "…e veja o Protótipo nascer no quadro" waits for task B. */
-      subtitle: 'Converse com o agente e cite as Dores dos clientes.'
+      subtitle: 'Converse com o agente e cite as Dores dos clientes.',
+      /**
+       * The hint under the field (criterion 1), in pieces: each key sits in a
+       * `<kbd>`, and the words between them carry their own spaces and dots.
+       */
+      dica: {
+        enter: 'Enter',
+        envia: ' envia · ',
+        shift: 'Shift',
+        mais: '+',
+        quebra: ' quebra a linha · ',
+        ctrl: 'Ctrl',
+        v: 'V',
+        cola: ' cola prints · ',
+        arroba: '@',
+        cita: ' cita Dores'
+      },
+      emAlta: 'Dores em alta',
+      emAltaFrase: 'Toque numa nota para citá-la no pedido.',
+      verTodas: 'Ver todas',
+      semRelatorioFonte: (fonte: string) => `Ainda sem Relatório de ${fonte}`,
+      gerar: 'Gerar',
+      gerando: (fonte: string, n: number) => `Gerando o Relatório de ${fonte}… ${n} de 4`,
+      semNenhum: (produto: string) => `${produto} ainda não tem Relatórios de Fonte.`,
+      semNenhumFrase:
+        'O agente lê os dados do período, agrupa por tema e ranqueia as Dores. Leva alguns segundos.',
+      gerarPrimeiro: (produto: string) => `Gerar o primeiro Relatório de ${produto}`
+    },
+    /** The module's chat field (`composer.js`): the home's and each conversation's. */
+    campo: {
+      rotulo: 'Mensagem para o agente',
+      placeholderInicio:
+        'Descreva o que você quer criar ou melhorar. Cole prints, cite Dores com @…',
+      placeholderConversa: 'Pergunte sobre as Dores e os Relatórios…',
+      enviar: 'Enviar',
+      parar: 'Parar',
+      mais: 'Adicionar arquivos, prints, Dores ou Relatórios',
+      menuTitulo: 'Adicionar ao pedido',
+      anexarArquivos: 'Anexar arquivos',
+      anexarArquivosNota: 'Prints, PDF, PRD (também dá para arrastar)',
+      colarPrint: 'Colar um print',
+      colarPrintNota: 'Copie a imagem e use Ctrl+V no campo',
+      colarDica: 'Copie um print e cole com Ctrl+V dentro do campo',
+      citarDor: 'Citar uma Dor',
+      citarDorNota: 'Ou digite @ no campo',
+      anexarRelatorio: 'Anexar um Relatório de Fonte',
+      anexarRelatorioNota: 'O agente usa como contexto',
+      relatoriosTitulo: 'Relatórios de Fonte',
+      relatorioItem: (fonte: string, produto: string) => `${fonte} · ${produto}`,
+      /** The chip an attached Relatório becomes (criterion 8). */
+      relatorioAnexo: (fonte: string, produto: string) => `Relatório de ${fonte} · ${produto}`,
+      voltar: 'Voltar',
+      doresDe: (produto: string) => `Dores de ${produto}`,
+      /** The `@` list with no Relatório of the Produto (criterion 6). */
+      arrobaVazio: (produto: string) => `Ainda não há Relatórios de ${produto}.`,
+      arrobaNenhuma: 'Nenhuma Dor com esse nome.',
+      dorMeta: (fonte: string, volume: string) => `${fonte} · ${volume}`,
+      citadas: 'Dores citadas',
+      tirarCitacao: (titulo: string) => `Tirar a citação de “${titulo}”`,
+      removerAnexo: (nome: string) => `Remover ${nome}`,
+      /** The notice after choosing an agent and a model (criterion 4). */
+      vaiResponder: (agente: string, modelo: string) => `${agente} ${modelo} vai responder`,
+      /** What a send says with no text, only Dores or only attachments (`composer.js`). */
+      resolverDores: (n: number) => (n === 1 ? 'Resolver esta Dor' : 'Resolver estas Dores'),
+      vejaAnexos: 'Veja os anexos',
+      soltar: 'Solte para anexar',
+      agentes: 'Agente'
     },
     /** The Produto picker on Dores (and, in lote 3, on the home). */
     produto: {
@@ -3113,12 +3179,50 @@ export const ptBR = {
         `O que o ${agente} lê em cada categoria, com o próximo passo sugerido.`,
       doVolume: 'do volume',
       noPeriodo: 'no período',
+      perguntar: 'Perguntar ao agente',
+      /** What an insight's "Perguntar ao agente" sends (criterion 20, `graficos.js`). */
+      pergunta: (titulo: string, categoria: string) =>
+        `O que está por trás de “${titulo}” em ${categoria}?`,
       tendencia: (porcento: number) =>
         porcento === 0 ? 'estável' : `${porcento > 0 ? '+' : '−'}${Math.abs(porcento)}%`
     },
     conversa: {
       /** A conversation the listing has not brought in (yet). */
-      titleUnknown: 'Conversa'
+      titleUnknown: 'Conversa',
+      contexto: 'Contexto da conversa',
+      chipRelatorios: (n: number) => `${n} de 3 Relatórios`,
+      semPrototipo: 'Sem Protótipo',
+      mensagens: 'Mensagens da conversa',
+      /** The ready questions (criterion 13, `home.js`). */
+      perguntasLabel: 'Perguntas prontas',
+      perguntaCrescem: 'Quais Dores crescem mais?',
+      perguntaCompare: 'Compare as três Fontes',
+      perguntaVoz: 'O que a Voz do Cliente diz?',
+      perguntaComecar: 'Por onde você começaria?',
+      escrevendo: 'O agente está escrevendo',
+      voce: 'Você',
+      /** A turn that failed (Unresolved 2, written for now): never the agent's own words. */
+      falha: 'Não consegui responder agora. Tente de novo.',
+      agenteTrocado: (agente: string) => `Agente trocado para ${agente}`,
+      /** The guided first Relatório (criterion 3, `home.js` and `chat.js`). */
+      guiadaPedido: (produto: string) => `Quero gerar o primeiro Relatório de ${produto}`,
+      guiadaAbertura: (produto: string) =>
+        `Ainda não há Relatórios de Fonte para ${produto}. Vamos gerar o primeiro: eu leio os dados do período, agrupo por tema e ranqueio as Dores.`,
+      guiadaPergunta: 'Por qual Fonte quer começar?',
+      fontesLabel: 'Fontes para começar',
+      comecarPor: (fonte: string) =>
+        fonte.startsWith('Voz') ? `Começar pela ${fonte}` : `Começar pelo ${fonte}`,
+      fonteNoPeriodo: (volume: string, unidade: string) => `${volume} ${unidade} no período`,
+      gerandoTitulo: (fonte: string, produto: string) =>
+        `Gerando o Relatório de ${fonte} de ${produto}`,
+      pronto: (destaque: string) => `Pronto. ${destaque}. Estas são as Dores que mais pesam:`,
+      relatorioCartao: (fonte: string, produto: string) => `Relatório de ${fonte} · ${produto}`,
+      relatorioMeta: (volume: string, unidade: string, destaque: string) =>
+        `${volume} ${unidade} · ${destaque}`,
+      abrirRelatorio: 'Abrir Relatório',
+      dorLinha: (rank: number, titulo: string, volume: string, impacto: string) =>
+        `${rank}. ${titulo}, ${volume}, impacto ${impacto.toLowerCase()}`,
+      abrirDor: (titulo: string) => `Abrir a Dor “${titulo}”`
     },
     /** Short month names, for dates written "29 set 2026". */
     mes: (indice: number) =>

@@ -1986,6 +1986,7 @@ export function WorkUI({
             store={designStudio}
             userName={userName}
             navVisible={designNavVisible(sidebarOpen, activeTab)}
+            claudeAuth={claudeAuth}
           />
         )
       }

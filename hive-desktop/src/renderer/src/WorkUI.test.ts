@@ -956,7 +956,14 @@ function createHiveMock(): Window['hive'] {
       planejarGeracao: vi.fn(),
       abandonarGeracao: vi.fn(async () => undefined),
       geracaoAtual: vi.fn(async () => null),
-      onGeracao: vi.fn(() => () => {})
+      onGeracao: vi.fn(() => () => {}),
+      // The conversa do Produto (task 1): never answered here either.
+      planejarConversa: vi.fn(),
+      abandonarConversa: vi.fn(async () => undefined),
+      novaConversa: vi.fn(async () => null),
+      lerConversa: vi.fn(async () => null),
+      colar: vi.fn(),
+      onConversa: vi.fn(() => () => {})
     },
     getRecentWorkspaces: vi.fn(async () => []),
     openWorkspace: vi.fn(async (path: string) => ({ ok: true, path })),

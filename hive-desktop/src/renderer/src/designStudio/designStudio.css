@@ -1549,3 +1549,550 @@
     grid-column: 2;
   }
 }
+
+/* ==========================================================================
+   Task 1, lote 1 — the chat field, the home's "Dores em alta" and the
+   conversa do Produto. Hive tokens only (ADR 0007, dsOnly.test.ts); the
+   field itself wears the Hive composer's classes (`wb-composer-wrap`).
+   ========================================================================== */
+
+/* --- The field ------------------------------------------------------------ */
+.ds-inicio-campo {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-3);
+  width: min(780px, 100%);
+}
+
+.ds-campo {
+  padding: 0;
+}
+
+.ds-campo .hds-prompt-input {
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+
+.ds-campo .hds-prompt-input:focus-within {
+  border-color: var(--focus);
+}
+
+.ds-campo-espaco {
+  flex: 1;
+}
+
+.ds-campo[data-arrastando] .hds-prompt-input {
+  border-style: dashed;
+  border-color: var(--focus);
+}
+
+.ds-campo-soltar {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  pointer-events: none;
+}
+
+.ds-campo-contexto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.ds-campo-contexto .wb-attach-tray {
+  display: contents;
+}
+
+/* A cited Dor: in the field (with its "×"), in a message, in a reply. */
+.ds-chip-dor {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 4px 3px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--ink);
+  vertical-align: middle;
+}
+
+.ds-chip-dor-titulo {
+  overflow: hidden;
+  min-width: 0;
+  padding-right: 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rounded-full);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ds-chip-x:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.ds-chip-dor-btn {
+  padding-right: 10px;
+  cursor: pointer;
+}
+
+.ds-chip-dor-btn:hover {
+  background: var(--surface-2);
+}
+
+.ds-chip-x:focus-visible,
+.ds-chip-dor-btn:focus-visible,
+.ds-atalho:focus-visible,
+.ds-escolha:focus-visible,
+.ds-cartao-dor:focus-visible,
+.ds-arroba-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The hint under the home's field (criterion 1). */
+.ds-dica {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--muted);
+}
+
+.ds-dica .hds-kbd {
+  margin: 0 1px;
+}
+
+.ds-inicio-produto {
+  display: flex;
+  justify-content: center;
+}
+
+/* The `@` list, docked above the field (it wears the Hive's mention menu). */
+.ds-arroba-lista {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.ds-arroba-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 6px var(--s-2);
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ds-arroba-item[aria-selected='true'] {
+  background: var(--surface-2);
+}
+
+.ds-arroba-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ds-arroba-texto b {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-arroba-texto small {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.ds-arroba-vazio {
+  margin: 0;
+  padding: var(--s-3);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* --- "Dores em alta" (criteria 2, 3) -------------------------------------- */
+.ds-inicio-secao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  width: min(1100px, 100%);
+}
+
+.ds-inicio-secao-topo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ds-inicio-secao-titulo {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ds-inicio-secao-frase {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.ds-emalta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-4);
+}
+
+.ds-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.ds-cluster-cab {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.ds-cluster-titulo {
+  flex: 1;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ds-cluster-notas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-cluster-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin: 0;
+  padding: var(--s-3);
+  border: 1px dashed var(--muted);
+  border-radius: var(--rounded-lg);
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+
+.ds-inicio-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  max-width: 520px;
+  padding: var(--s-4);
+  border: 1px dashed var(--muted);
+  border-radius: var(--rounded-lg);
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.ds-inicio-vazio p {
+  margin: 0;
+}
+
+.ds-inicio-vazio-titulo {
+  font-weight: 700;
+}
+
+@container (max-width: 900px) {
+  .ds-emalta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- The conversa do Produto (criteria 10–17) ----------------------------- */
+.ds-conversa {
+  min-height: 100%;
+}
+
+.ds-msgs {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.ds-msg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-width: 68ch;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.ds-msg p {
+  margin: 0;
+}
+
+.ds-msg-pessoa {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.ds-bolha {
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--rounded-lg);
+  background: var(--surface-2);
+  white-space: pre-wrap;
+}
+
+.ds-msg-anexos,
+.ds-msg-citas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ds-msg-cab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+}
+
+.ds-msg-logo {
+  display: inline-flex;
+}
+
+.ds-msg-agente {
+  font-weight: 700;
+}
+
+.ds-msg-modelo {
+  color: var(--muted);
+}
+
+.ds-msg-texto {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ds-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  background: var(--ink);
+  vertical-align: text-bottom;
+  animation: ds-cursor 1s steps(2) infinite;
+}
+
+@keyframes ds-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-cursor {
+    animation: none;
+  }
+}
+
+.ds-registro {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.ds-escolhas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.ds-escolha {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ds-escolha:hover {
+  background: var(--surface-2);
+}
+
+.ds-escolha-texto {
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-escolha-texto b {
+  font-size: 0.875rem;
+}
+
+.ds-escolha-texto small {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.ds-cartao-relatorio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-lg);
+  background: var(--surface);
+}
+
+.ds-cartao-relatorio-cab {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.ds-cartao-relatorio-cab span {
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-cartao-relatorio-cab small {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.ds-cartao-relatorio-dores {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ds-cartao-dor {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 6px var(--s-2);
+  border: 0;
+  border-radius: var(--rounded-md);
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ds-cartao-dor:hover {
+  background: var(--surface-2);
+}
+
+.ds-cartao-dor-rank {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-cartao-dor-titulo {
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-conversa-pe {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+  background: var(--bg);
+}
+
+.ds-atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ds-atalho {
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--rounded-full);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ds-atalho:hover {
+  background: var(--surface-2);
+}
+
+.ds-atalho[aria-disabled='true'] {
+  color: var(--muted);
+  cursor: default;
+}
+
+.ds-insight-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}

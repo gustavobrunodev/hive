@@ -608,7 +608,14 @@ describe('Explorer (T12/T8)', () => {
         planejarGeracao: vi.fn(),
         abandonarGeracao: vi.fn(),
         geracaoAtual: vi.fn().mockResolvedValue(null),
-        onGeracao: vi.fn(() => () => {})
+        onGeracao: vi.fn(() => () => {}),
+        // The conversa do Produto (task 1): never answered here either.
+        planejarConversa: vi.fn(),
+        abandonarConversa: vi.fn(),
+        novaConversa: vi.fn(),
+        lerConversa: vi.fn().mockResolvedValue(null),
+        colar: vi.fn(),
+        onConversa: vi.fn(() => () => {})
       },
       chatHistory: {
         list: vi.fn().mockResolvedValue([]),

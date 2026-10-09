@@ -23,6 +23,8 @@ export interface DesignStudioStore {
   conversations: readonly ModuleConversation[] | null
   /** When that listing landed: the render-stable "now" its relative times are read against. */
   loadedAt: number
+  /** Reads the listing again — a conversation was started or answered inside the module. */
+  recarregar: () => void
 }
 
 /**
@@ -50,6 +52,9 @@ export function useDesignStudio(active: boolean): DesignStudioStore {
     loadedAt: number
   }>({ conversations: null, loadedAt: 0 })
 
+  const [leitura, setLeitura] = useState(0)
+  const recarregar = useCallback(() => setLeitura((n) => n + 1), [])
+
   useEffect(() => {
     if (!active) return
     let cancelled = false
@@ -64,7 +69,7 @@ export function useDesignStudio(active: boolean): DesignStudioStore {
     return () => {
       cancelled = true
     }
-  }, [active])
+  }, [active, leitura])
 
   const navigate = useCallback((next: DesignRoute) => {
     setRoute(next)
@@ -81,8 +86,9 @@ export function useDesignStudio(active: boolean): DesignStudioStore {
       mountedPages,
       pageRoutes,
       conversations: listing.conversations,
-      loadedAt: listing.loadedAt
+      loadedAt: listing.loadedAt,
+      recarregar
     }),
-    [route, navigate, mountedPages, pageRoutes, listing]
+    [route, navigate, mountedPages, pageRoutes, listing, recarregar]
   )
 }
