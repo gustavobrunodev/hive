@@ -8,9 +8,10 @@ O POC do Design Studio é construído numa máquina pessoal, fora do ambiente do
 | Dados das Fontes | arquivos sintéticos lidos pelas skills de relatório | Athena, com as três Fontes (o FullStory chega por export para S3) e um ID de Produto comum |
 | Login do agente | o que o harness detectar (assinatura) | provavelmente Bedrock na conta AWS do banco |
 | Onboarding "Conecte seus dados" | não existe | entra no porte |
-| Origem das atualizações da Skill de UX | upstream | espelho interno |
+| Origem das atualizações da Skill de UX | upstream: o instalador da própria impeccable, via `npx`, a partir do registro npm | espelho interno |
+| Design system das telas dos Protótipos | livre: a impeccable cria qualquer interface (perfil `livre`, [0006](0006-telas-livres-no-poc-ids-por-perfil.md)) | IDS: perfil `ids`, com os tokens e as regras do iu-memorable |
 
-O app só conhece a pasta da Skill de UX ativa. O template de Protótipo vem dela, e não do app. Os dados sintéticos e o visual livre dos Protótipos não são escolhas de produto: são consequência de não haver acesso, aqui, aos dados reais e ao DS Itaú.
+Os valores de cada ponto de troca ficam num único arquivo do módulo no Hive, `resources/design-studio/pontos-de-troca.json` ([0007](0007-modulo-do-hive.md)), e o guia `docs/porte.md` ensina o agente do porte a trocá-los ([0006](0006-telas-livres-no-poc-ids-por-perfil.md)). O app só conhece a pasta da Skill de UX ativa. O template de Protótipo vem dela, e não do app. Os dados sintéticos e o visual livre dos Protótipos não são escolhas de produto: são consequência de não haver acesso, aqui, aos dados reais e ao DS Itaú.
 
 ## Considered Options
 

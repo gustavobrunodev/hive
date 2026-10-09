@@ -473,6 +473,8 @@ Vista irmã da Leitura, para quem precisa ver o volume antes de ler a narrativa.
 - **Títulos:** gráfico e painel de insights com título h2 em Geist 600 1rem e subtítulo em tinta 3; cada insight com h3.
 
 ### Camada do Protótipo (conteúdo, não estúdio)
+> No app do POC, o conteúdo dos frames é livre (perfil `livre`, ADR 0006). Esta camada descreve o protótipo de validação, vira o perfil de exemplo dos testes e é o alvo do porte, onde o IDS de verdade vem do iu-memorable.
+
 O que roda dentro das molduras é um app bancário fictício que representa o app do cliente, vestido o mais perto possível do design system do Itaú (IDS, tema varejo). Os tokens foram lidos das variáveis `--ids_*` de itau.com.br e cada um carrega o nome IDS em comentário no proto.css; tudo é escopado em `.pt`. Dentro do banco, o iu-memorable troca esta camada no porte.
 - **Cor:** ação primária laranja #FF6200 (hover #E55800), ação secundária e links em azul-marinho #000066, texto #000000 e #4C4C4C, fundos #FFFFFF, #F1F2F4 e #E3E5E8, bordas #CFD1D3 e #5D636F; sucesso #0B5B38, erro #CC0000, alerta #FFCC00 com texto preto. Ícones de marca em #E55800 (3,7:1 sobre branco). Foco é contorno de 2px em azul-marinho.
 - **Tipo:** pilha "Itau Text"/"Itau Display", depois Lato, servida localmente em 400, 700 e 900. As fontes proprietárias só valem se já estiverem instaladas; nenhum arquivo delas é copiado. Corpo 16px/24px; título de barra 16px/24px 700; valores grandes 24px/32px e 32px/40px 700.

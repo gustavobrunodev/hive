@@ -9,7 +9,7 @@ web
 ## Stack
 
 - **Protótipo de validação deste app:** HTML, CSS e JS estáticos, sem build. É uma escolha do usuário (2026-10-01): abre em qualquer navegador e é publicado como link privado para teste. Não é o código do app final.
-- **App real:** Electron, Windows primeiro, com renderer React. O harness de agentes vem copiado do Hive Desktop ([ADR 0002](docs/adr/0002-harness-copiado-do-hive.md)).
+- **App real:** um módulo do Hive Desktop (Electron, Windows primeiro, renderer React), aberto pela linha "Design Studio" logo abaixo de "+ Novo". Usa o harness de agentes do Hive, sem cópia ([ADR 0007](docs/adr/0007-modulo-do-hive.md), decisão do usuário em 2026-10-08, que substitui a 0002).
 - **Protótipos gerados pelo app:** Angular ([ADR 0004](docs/adr/0004-template-angular.md)).
 
 ## Users
@@ -73,7 +73,12 @@ O vocabulário canônico está em [GLOSSARY.md](GLOSSARY.md): Fonte, Evidência,
 - **Protótipo de produto existente.** Recria o Atual a partir das Referências; a Dor é opcional.
 - **Protótipo de produto novo.** Parte de um Briefing.
 - **Propostas.** Um Protótipo tem várias Propostas, com uma ativa.
-- **Sessão de design.** O chat fica ao lado do palco live. O overlay de seleção, anotação e Variantes funciona dentro do palco, com troca entre celular e desktop e telas pensadas primeiro para celular. O modo ao vivo tem duas ferramentas. **Editar** gera Variantes de um elemento escolhido. **Inserir** cria um elemento novo antes ou depois de um bloco da tela, a partir de um pedido em texto livre, e também oferece Variantes para escolher.
+- **Sessão de design.** O chat fica ao lado do quadro, onde o Protótipo roda ao vivo, com troca entre celular e desktop e telas pensadas primeiro para celular. O modo ao vivo é 100% do app ([ADR 0005](docs/adr/0005-modo-ao-vivo-desenhado-pelo-estudio.md), decisão do usuário em 2026-10-08): o estúdio desenha as ferramentas sobre a tela, executa cada passo e só pede ao agente o conteúdo das Variantes. Ele traz todas as funcionalidades do live da impeccable, mais as do estúdio:
+  - **Editar** gera Variantes de um elemento escolhido, com as ações da Skill de UX, anotações, parâmetros ajustáveis em cada Variante e, no POC, a opção "Mudar o estilo";
+  - **Inserir** cria um elemento novo antes ou depois de um bloco da tela, a partir de um pedido em texto livre ou de anotações, e também oferece Variantes para escolher;
+  - **Texto** edita os textos fixos direto na tela;
+  - **Ajustar** muda densidade, texto, cantos e cor da tela;
+  - **Comentar** deixa pinos na tela e os envia ao agente.
 - **Pontos de restauração.** Um a cada resposta do agente.
 - **Multi-agente visível.** Claude e Devin, cada um com seus modelos e identificado pela logo original do agente. O Copilot saiu do escopo em 2026-10-01.
 - **Sem pedido de permissão técnico.** O agente age livremente dentro da pasta do Protótipo.
@@ -90,16 +95,16 @@ O vocabulário canônico está em [GLOSSARY.md](GLOSSARY.md): Fonte, Evidência,
 
 **Restrições:**
 
-- O design system deste app precisa ser diferente do usado no Hive Desktop.
-- As telas dos Protótipos seguem o design system do Itaú (IDS) o mais de perto possível (decisão do usuário em 2026-10-02). Os tokens de cor, raio, tipo e anatomia de botão foram lidos do CSS público de itau.com.br. As fontes proprietárias do banco não são copiadas: o Lato, fallback declarado pelo próprio site, entra no lugar delas. Logos também não são copiadas. Dentro do banco, o iu-memorable substitui essa camada no porte.
+- O módulo usa o design system do Hive (`@hive/design-system`) ([ADR 0007](docs/adr/0007-modulo-do-hive.md)). O visual próprio do estúdio fica no protótipo de validação e na lib de referência `design-studio/design-system/`.
+- No POC, as telas dos Protótipos são livres: a impeccable cria qualquer interface, com todas as funcionalidades ([ADR 0006](docs/adr/0006-telas-livres-no-poc-ids-por-perfil.md), decisão do usuário em 2026-10-08). O IDS entra no porte, por um perfil de design com os tokens e as regras do iu-memorable. A camada IDS do protótipo de validação (decisão de 2026-10-02) continua lá e vira o perfil de exemplo dos testes. Os tokens de cor, raio, tipo e anatomia de botão dessa camada foram lidos do CSS público de itau.com.br. As fontes proprietárias do banco não são copiadas: o Lato, fallback declarado pelo próprio site, entra no lugar delas. Logos também não são copiadas.
 
 ## Brand Commitments
 
 - **Nome:** Design Studio.
 - **Voz:** pt-BR simples, para quem não é técnico. As coisas se chamam pelo que PM e UX reconhecem (Dor, Protótipo, Proposta), nunca pelo que o sistema faz por baixo (MCP, git, CLI, checkpoint, stream).
-- **Identidade:** visual próprio, distinto do Hive Desktop.
-- **Cores (decisão do usuário, revista em 2026-10-01).** O laranja do Itaú é o acento da interface, usado só nas ações principais e nos destaques, sobre neutros modernos. **Nenhum azul**: o usuário recusou o azul-marinho da primeira versão. A regra vale também quando contrariar alertas de padrão saturado. Não usa logo, nome nem tipografia do banco; a marca na tela é "Design Studio".
-- **Conteúdo dos frames (decisão do usuário, 2026-10-02).** As telas dentro dos frames seguem os tokens do IDS, inclusive o azul-marinho do banco. A regra do "nenhum azul" vale para a interface do Design Studio, não para o Protótipo que o usuário está desenhando.
+- **Identidade:** o módulo segue o visual do Hive Desktop ([ADR 0007](docs/adr/0007-modulo-do-hive.md)). O visual próprio do estúdio, o "Quadro de oficina", fica no protótipo de validação.
+- **Cores do protótipo de validação (decisão do usuário, revista em 2026-10-01).** No módulo, valem as cores do Hive (ADR 0007). No protótipo, o laranja do Itaú é o acento da interface, usado só nas ações principais e nos destaques, sobre neutros modernos. **Nenhum azul**: o usuário recusou o azul-marinho da primeira versão. A regra vale também quando contrariar alertas de padrão saturado. Não usa logo, nome nem tipografia do banco; a marca na tela é "Design Studio".
+- **Conteúdo dos frames.** No POC, as telas dentro dos frames são livres (ADR 0006). No protótipo de validação (decisão do usuário, 2026-10-02) e no porte, com o perfil `ids`, elas seguem os tokens do IDS, inclusive o azul-marinho do banco. A regra do "nenhum azul" vale para a interface do Design Studio, não para o Protótipo que o usuário está desenhando.
 - **Distribuição:** o protótipo fica em arquivos locais e não é publicado como link público, porque carrega a identidade de cor e, dentro dos frames, os tokens de design system de uma organização real.
   - **Exceção (decisão do usuário, 2026-10-02):** o design system da interface do estúdio pode ser publicado na Claude Design como artifact privado: tokens claro/escuro, fontes Geist e Bricolage Grotesque, ícones, componentes do estúdio e as marcas dos agentes e do iu-memorable. A fonte é a lib TypeScript em `design-system/` (React 18, Storybook, testes), sincronizada por `npm run sync:claude-design`. Ficam de fora a camada das telas no padrão IDS e o nome do banco. O protótipo continua só local.
 - **Referência de experiência:** o Claude Design, o mais próximo possível: chat como primeira tela, chat ao lado do canvas, comentários na própria tela, ajustes finos e modo apresentação. Ele é referência de experiência, não de visual.
@@ -129,4 +134,4 @@ O vocabulário canônico está em [GLOSSARY.md](GLOSSARY.md): Fonte, Evidência,
 
 - **WCAG 2.2 AA** em todas as telas: contraste, foco visível, navegação completa por teclado e rótulos para leitor de tela.
 - **Margem de contraste para projeção.** O app é usado com projetor e em compartilhamento de tela comprimido, que lavam contraste sutil. Texto principal, estados e dados ficam bem acima do mínimo AA, e a informação nunca depende só de nuances de cor.
-- **Exceção dentro dos frames: o botão primário do IDS.** Branco sobre #FF6200 dá 3,0:1. Passa no AA como texto grande, porque o rótulo tem 20px em negrito, mas fica sem margem para projeção. É mantido por fidelidade ao design system do banco e vale só para o conteúdo dos frames, nunca para a interface do Design Studio. O botão desabilitado do IDS no Atual também fica abaixo de 3:1, mas a WCAG isenta controles desabilitados.
+- **Exceção dentro dos frames: o botão primário do IDS.** Branco sobre #FF6200 dá 3,0:1. Passa no AA como texto grande, porque o rótulo tem 20px em negrito, mas fica sem margem para projeção. É mantido por fidelidade ao design system do banco e vale só para o conteúdo dos frames com o IDS (no protótipo de validação e, no porte, com o perfil `ids`), nunca para a interface do Design Studio. O botão desabilitado do IDS no Atual também fica abaixo de 3:1, mas a WCAG isenta controles desabilitados.

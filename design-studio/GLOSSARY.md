@@ -69,5 +69,5 @@ _Avoid_: input, prompt, ideia
 ## Ferramental
 
 **Skill de UX**:
-O pacote trocável que dá ao agente as regras de UX, o modo live e o template de Protótipo: impeccable fora do banco, iu-memorable dentro.
+O pacote trocável de onde o app tira as regras de UX que entrega ao agente, o detector e o template de Protótipo: impeccable fora do banco, iu-memorable dentro. O modo ao vivo é do app, não da Skill de UX.
 _Avoid_: motor de design, kit de design, design system

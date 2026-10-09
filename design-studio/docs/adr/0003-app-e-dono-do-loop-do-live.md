@@ -1,5 +1,7 @@
 # O app, não o agente, é dono do loop do modo live
 
+> **Substituída** pela [0005](0005-modo-ao-vivo-desenhado-pelo-estudio.md) em 2026-10-08: o modo ao vivo é 100% do app. O app não roda o `live-poll` nem nenhuma parte do live da impeccable; ele executa cada passo por conta própria e só pede ao agente o conteúdo das Variantes. O texto abaixo fica como histórico.
+
 A skill impeccable manda que o próprio agente mantenha o loop de eventos do modo live, como tarefa em segundo plano (`impeccable live-poll`). No Design Studio, quem faz isso é o **processo principal do app**. Ele roda o `live-poll` da Skill de UX ativa e entrega cada evento (gerar Variantes, orientar, aplicar edições de texto) como um turno ao agente da conversa. Um prompt de sistema anula a instrução da skill de manter o próprio loop.
 
 **Por quê:**
