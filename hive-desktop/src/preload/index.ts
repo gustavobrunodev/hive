@@ -41,6 +41,12 @@ import type { ModuleConversationMeta } from '../main/designStudio/conversations'
 import type { Catalogo, FonteId } from '../main/designStudio/catalogo'
 import type { RelatorioDeFonte } from '../main/designStudio/relatorioFormato'
 import type {
+  ConversaGuardada,
+  EventoDeConversa,
+  PedidoDeConversa,
+  PlanoDeConversa
+} from '../main/designStudio/conversaTurno'
+import type {
   EventoDeGeracao,
   PedidoDeGeracao,
   PlanoDeGeracao
@@ -476,6 +482,36 @@ const hive = {
       ipcRenderer.on('designStudio:geracao', listener)
       return () => {
         ipcRenderer.removeListener('designStudio:geracao', listener)
+      }
+    },
+    // The conversa do Produto: main plans each turn — creating the conversation
+    // on its first message, recording the person's line, copying attachments
+    // where the scoped turn may read them — and the renderer sends it with
+    // `agent.send`. `ocupado` while that conversation already has a turn.
+    planejarConversa: (pedido: PedidoDeConversa): Promise<PlanoDeConversa> =>
+      ipcRenderer.invoke('designStudio:planejarConversa', pedido),
+    abandonarConversa: (turnId: string): Promise<void> =>
+      ipcRenderer.invoke('designStudio:abandonarConversa', turnId),
+    // The guided first Relatório: a conversation with the person's line and no
+    // turn. `null` for a Produto the catalog does not know.
+    novaConversa: (produto: string, texto: string, titulo: string): Promise<string | null> =>
+      ipcRenderer.invoke('designStudio:novaConversa', produto, texto, titulo),
+    // A stored conversation, as a reopened one draws it.
+    lerConversa: (produto: string, conversa: string): Promise<ConversaGuardada | null> =>
+      ipcRenderer.invoke('designStudio:lerConversa', produto, conversa),
+    // A pasted print's bytes, written by main to a file that can be attached.
+    colar: (
+      nome: string,
+      bytes: ArrayBuffer
+    ): Promise<{ path: string; name: string; size: number }> =>
+      ipcRenderer.invoke('designStudio:colar', nome, bytes),
+    // A conversation turn's reply, broadcast by main to every window: only the
+    // reply's text and who gave it — never a tool, a path or a permission.
+    onConversa: (onEvent: (evento: EventoDeConversa) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, evento: EventoDeConversa): void => onEvent(evento)
+      ipcRenderer.on('designStudio:conversa', listener)
+      return () => {
+        ipcRenderer.removeListener('designStudio:conversa', listener)
       }
     }
   },

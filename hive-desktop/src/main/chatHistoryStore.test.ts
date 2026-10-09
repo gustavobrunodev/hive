@@ -39,6 +39,41 @@ describe('chatHistoryStore', () => {
     expect(reread?.agent).toBe('claude-cli')
   })
 
+  it('records the agent and the model of a reply, and reads a file written before the fields', () => {
+    const session = store.create(WS, 'claude-cli')
+    store.appendMessage(WS, session.id, { role: 'user', text: 'Quais Dores crescem mais?' })
+    store.appendMessage(WS, session.id, {
+      role: 'assistant',
+      text: 'As que mais cresceram…',
+      agent: 'devin',
+      model: 'swe-1-5'
+    })
+    store.appendMessage(WS, session.id, {
+      role: 'assistant',
+      text: 'Sem modelo.',
+      agent: 'claude-cli'
+    })
+    const messages = createChatHistoryStore(baseDir).get(WS, session.id)?.messages ?? []
+    expect(messages.map((m) => [m.role, m.agent, m.model])).toEqual([
+      ['user', undefined, undefined],
+      ['assistant', 'devin', 'swe-1-5'],
+      ['assistant', 'claude-cli', undefined]
+    ])
+
+    // An old file has neither field and still reads, unchanged.
+    const old = store.create(WS, 'claude-cli')
+    const dir = readdirSync(join(baseDir, 'chat-history'))[0]
+    writeFileSync(
+      join(baseDir, 'chat-history', dir, `${old.id}.json`),
+      JSON.stringify({
+        ...old,
+        messages: [{ id: 'm1', role: 'assistant', text: 'Antiga.', at: 1 }]
+      })
+    )
+    const reread = store.get(WS, old.id)
+    expect(reread?.messages).toEqual([{ id: 'm1', role: 'assistant', text: 'Antiga.', at: 1 }])
+  })
+
   it('appendMessage persists turns, bumps updatedAt, and auto-titles from the first user message', () => {
     const session = store.create(WS, null)
     const meta = store.appendMessage(WS, session.id, {

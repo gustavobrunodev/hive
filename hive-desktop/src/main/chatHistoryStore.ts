@@ -60,6 +60,16 @@ export interface StoredChatMessage {
    * fabricated number would be indistinguishable from a measured one.
    */
   compaction?: StoredCompaction
+  /**
+   * Design Studio: the agent that gave this reply (its registry id) and the
+   * model it ran on — what a module conversation shows above each answer
+   * after a restart. Written only on the replies the module records; absent on
+   * the Hive chat's messages and on every file written before this field, and
+   * a reader takes absence as "not known" rather than as any one agent.
+   * `model` is also absent when the CLI chose the model itself.
+   */
+  agent?: string
+  model?: string
 }
 
 /** What a `compaction` row knows about itself. */
@@ -163,6 +173,8 @@ export interface ChatHistoryStore {
       text: string
       attachments?: string[]
       compaction?: StoredCompaction
+      agent?: string
+      model?: string
     }
   ): ChatSessionMeta | null
   /** Sets a user-chosen title (overrides the auto-title from then on). Same `null` contract as `appendMessage`. */
@@ -375,6 +387,8 @@ export function createChatHistoryStore(baseDir: string): ChatHistoryStore {
       text: string
       attachments?: string[]
       compaction?: StoredCompaction
+      agent?: string
+      model?: string
     }
   ): ChatSessionMeta | null {
     const session = get(workspace, id)
@@ -388,7 +402,9 @@ export function createChatHistoryStore(baseDir: string): ChatHistoryStore {
       ...(message.attachments && message.attachments.length > 0
         ? { attachments: message.attachments }
         : {}),
-      ...(message.compaction ? { compaction: message.compaction } : {})
+      ...(message.compaction ? { compaction: message.compaction } : {}),
+      ...(message.agent ? { agent: message.agent } : {}),
+      ...(message.model ? { model: message.model } : {})
     })
     session.updatedAt = now
     if (session.title === '' && message.role === 'user') {

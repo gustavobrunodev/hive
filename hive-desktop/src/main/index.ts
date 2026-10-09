@@ -25,6 +25,12 @@ import { listModuleConversations } from './designStudio/conversations'
 import { readCatalogo, readVolumes, type Catalogo } from './designStudio/catalogo'
 import { latestRelatorios, relatorioAt } from './designStudio/relatorios'
 import {
+  createConversaService,
+  guardarColado,
+  type EventoDeConversa,
+  type PedidoDeConversa
+} from './designStudio/conversaTurno'
+import {
   createGenerationService,
   type EventoDeGeracao,
   type PedidoDeGeracao
@@ -1227,7 +1233,9 @@ app.whenReady().then(() => {
   ipcMain.handle('agent:stop', async () => {
     // Stopping the pool silences its event pumps first, so a generation in
     // flight would never hear its turn end: it ends here, as interrupted.
+    // The conversa do Produto's turns end the same way.
     designStudioGeneration.interrupt()
+    designStudioConversa.interrupt()
     agentService.stop()
   })
   // aws-bedrock: the AWS session surface.
@@ -1751,6 +1759,18 @@ app.whenReady().then(() => {
   // handlers above. Persists conversations in the per-user data dir keyed by
   // workspace — exposed as window.hive.chatHistory.*.
   const chatHistoryStore = createChatHistoryStore(app.getPath('userData'))
+  const designStudioConversa = createConversaService({
+    root: designStudioRoot,
+    store: chatHistoryStore,
+    catalogo: designStudioCatalog,
+    // A fact about the app, like the generation's: every live window hears it.
+    emit: (evento: EventoDeConversa) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        const contents = window.webContents
+        if (!contents.isDestroyed()) contents.send('designStudio:conversa', evento)
+      }
+    }
+  })
 
   ipcMain.handle('chatHistory:list', async (_event, workspace: string) =>
     chatHistoryStore.list(workspace)
@@ -1838,6 +1858,34 @@ app.whenReady().then(() => {
   // The generation's own subscription — never the renderer's: the window has
   // one agent-event subscription, and the Chat owns it (Landing 19).
   agentService.onEvent((agentEvent: AgentEvent) => designStudioGeneration.onAgentEvent(agentEvent))
+  // Design Studio — the conversa do Produto (task 1, Landing "canal IPC"):
+  // main plans each turn, records the person's message and the reply, and
+  // tells every window about the reply on the module's own channel — again
+  // never through the renderer's one agent-event subscription.
+  ipcMain.handle('designStudio:planejarConversa', async (_event, pedido: PedidoDeConversa) =>
+    designStudioConversa.plan(pedido)
+  )
+  ipcMain.handle('designStudio:abandonarConversa', async (_event, turnId: string) =>
+    designStudioConversa.abandon(turnId)
+  )
+  ipcMain.handle(
+    'designStudio:novaConversa',
+    async (_event, produto: string, texto: string, titulo: string) =>
+      designStudioConversa.iniciar(produto, texto, titulo)
+  )
+  ipcMain.handle('designStudio:lerConversa', async (_event, produto: string, conversa: string) =>
+    designStudioConversa.ler(produto, conversa)
+  )
+  // A print pasted into the module's field: the sandboxed renderer has its
+  // bytes and no path, so main writes them where an attachment can come from.
+  ipcMain.handle('designStudio:colar', async (_event, nome: unknown, bytes: unknown) =>
+    guardarColado(
+      join(app.getPath('userData'), 'design-studio-colados'),
+      typeof nome === 'string' ? nome : '',
+      bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes as ArrayBuffer)
+    )
+  )
+  agentService.onEvent((agentEvent: AgentEvent) => designStudioConversa.onAgentEvent(agentEvent))
 
   // WorkflowCatalog (T17): request/response, same shape as fs:listTree/
   // fs:readFile above — a one-shot list, not a stream. Exposed as
