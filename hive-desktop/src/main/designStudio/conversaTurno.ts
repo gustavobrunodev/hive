@@ -223,7 +223,7 @@ export function promptDaConversa(input: {
   const partes = [
     `Você está no Design Studio, conversando com uma pessoa de produto sobre as Dores dos clientes do Produto ${input.produto}.`,
     'Responda em português do Brasil, em linguagem simples. Não fale de arquivos, caminhos, comandos, ferramentas, git nem MCP.',
-    'Use só o que está nos Relatórios de Fonte abaixo e não invente números.',
+    'Use só o que está nos Relatórios de Fonte abaixo e não invente números. Escreva em texto corrido, sem Markdown.',
     'Quando falar de uma Dor da lista, escreva a marca [[dor:<id>]] logo depois do título dela, com o id que aparece entre colchetes.',
     '',
     `# Relatórios de Fonte de ${input.produto}`,
@@ -250,6 +250,8 @@ interface TurnoAtivo {
   workspace: string
   agente: string
   modelo: string | null
+  /** The model the CLI said it ran on in this turn (`usage.model`), when it said. */
+  modeloInformado: string | null
   texto: string
   cli: string | null
 }
@@ -362,6 +364,8 @@ export function createConversaService(deps: ConversaDeps): ServicoDeConversa {
   /** The turn ended with words: they are the reply, kept with who gave it. */
   function concluir(ativo: TurnoAtivo, estado: 'pronto' | 'parado'): void {
     ativos.delete(ativo.turnId)
+    // The model that gave the reply: the CLI's own word for it, else the one chosen.
+    const modelo = ativo.modeloInformado ?? ativo.modelo
     if (estado === 'pronto' && ativo.texto.trim() === '') {
       deps.emit({ ...base(ativo), estado: 'falhou', erro: '' })
       return
@@ -371,7 +375,7 @@ export function createConversaService(deps: ConversaDeps): ServicoDeConversa {
         role: 'assistant',
         text: ativo.texto,
         agent: ativo.agente,
-        ...(ativo.modelo ? { model: ativo.modelo } : {})
+        ...(modelo ? { model: modelo } : {})
       })
       // The stored session is always the last reply's agent's — empty when
       // that agent never named one, so no other agent can ever be handed it.
@@ -383,7 +387,7 @@ export function createConversaService(deps: ConversaDeps): ServicoDeConversa {
       estado,
       texto: ativo.texto,
       agente: ativo.agente,
-      modelo: ativo.modelo
+      modelo
     })
   }
 
@@ -419,6 +423,7 @@ export function createConversaService(deps: ConversaDeps): ServicoDeConversa {
         workspace,
         agente: pedido.agente.id,
         modelo: pedido.agente.modelo,
+        modeloInformado: null,
         texto: '',
         cli: null
       })
@@ -455,6 +460,9 @@ export function createConversaService(deps: ConversaDeps): ServicoDeConversa {
         case 'token':
           ativo.texto += event.text
           deps.emit({ ...base(ativo), estado: 'escrevendo', texto: ativo.texto })
+          return
+        case 'usage':
+          if (event.usage.model) ativo.modeloInformado = event.usage.model
           return
         case 'session':
           ativo.cli = event.id

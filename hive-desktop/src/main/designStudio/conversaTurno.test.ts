@@ -254,6 +254,36 @@ describe('the conversa do Produto turn', () => {
     ])
   })
 
+  it('records the model the CLI said it ran on, over the one chosen in the field (Landing, model per reply)', () => {
+    const automatico = planOk({ agente: { id: 'claude-cli', modelo: null } })
+    service.onAgentEvent({ type: 'token', text: 'oi', turnId: automatico.turnId })
+    service.onAgentEvent({
+      type: 'usage',
+      usage: {
+        inputTokens: 1,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+        outputTokens: 1,
+        model: 'claude-opus-5'
+      },
+      turnId: automatico.turnId
+    })
+    service.onAgentEvent({ type: 'done', turnId: automatico.turnId })
+    expect(events.at(-1)).toMatchObject({ estado: 'pronto', modelo: 'claude-opus-5' })
+    expect(service.ler('Câmbio', automatico.conversa)?.mensagens.at(-1)?.modelo).toBe(
+      'claude-opus-5'
+    )
+
+    const semInforme = planOk({
+      conversa: automatico.conversa,
+      agente: { id: 'claude-cli', modelo: null }
+    })
+    service.onAgentEvent({ type: 'token', text: 'oi', turnId: semInforme.turnId })
+    service.onAgentEvent({ type: 'done', turnId: semInforme.turnId })
+    expect(events.at(-1)).toMatchObject({ estado: 'pronto', modelo: null })
+    expect(service.ler('Câmbio', automatico.conversa)?.mensagens.at(-1)?.modelo).toBeNull()
+  })
+
   it('ignores the events of turns that are not its own', () => {
     service.onAgentEvent({ type: 'token', text: 'do Chat', turnId: 'chat-1' })
     service.onAgentEvent({ type: 'done' })
