@@ -409,7 +409,8 @@ export function storeAt(route: DesignRoute, navigate = vi.fn()): DesignStudioSto
     pageRoutes,
     conversations: [],
     loadedAt: 0,
-    recarregar: vi.fn()
+    recarregar: vi.fn(),
+    ativo: true
   }
 }
 

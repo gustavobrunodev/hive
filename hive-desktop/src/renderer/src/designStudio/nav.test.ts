@@ -61,6 +61,7 @@ function storeWith(overrides: Partial<DesignStudioStore> = {}): DesignStudioStor
     conversations: [],
     loadedAt: NOW,
     recarregar: vi.fn(),
+    ativo: true,
     ...overrides
   }
 }

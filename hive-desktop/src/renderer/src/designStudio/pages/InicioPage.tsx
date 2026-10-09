@@ -16,6 +16,8 @@ export interface InicioPageProps {
   userName: string | null
   seal: boolean
   navigate: (route: DesignRoute) => void
+  /** The home is on screen in the module in front: the caret goes to its field (criterion 1). */
+  focar?: boolean
 }
 
 /** The Produto a citation belongs to: the first folder of its Relatório's path. */
@@ -55,7 +57,12 @@ function Dica(): React.JSX.Element {
  * render: a greeting that flips under the cursor at noon reads as a glitch,
  * and the page stays mounted for the whole session anyway.
  */
-export function InicioPage({ userName, seal, navigate }: InicioPageProps): React.JSX.Element {
+export function InicioPage({
+  userName,
+  seal,
+  navigate,
+  focar = false
+}: InicioPageProps): React.JSX.Element {
   const [openedAt] = useState(() => new Date())
   const dados = useDesignData()
   const [escolhido, setEscolhido] = useState<string | null>(null)
@@ -135,6 +142,7 @@ export function InicioPage({ userName, seal, navigate }: InicioPageProps): React
               onAgente={setAgente}
               respondendo={false}
               bloqueado={enviando}
+              focar={focar}
               onEnviar={(parte: ParteDoEnvio) =>
                 void abrirConversa({ produto, conversa: null, ...parte })
               }

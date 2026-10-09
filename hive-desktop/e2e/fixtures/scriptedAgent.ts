@@ -81,6 +81,12 @@ export interface AgentScript {
    * them back up is exactly what `readMcpRoster` is being tested to do.
    */
   mcpTools?: string[]
+  /**
+   * Permission questions, asked over Hive's approval endpoint exactly as the
+   * real CLI asks them (the `--mcp-config` server's `approve` tool). Each
+   * verdict is recorded as an `approval` invocation.
+   */
+  approvals?: Array<{ tool: string; input?: Record<string, unknown> }>
 }
 
 export interface ScriptedAgent {
@@ -99,7 +105,10 @@ export interface ScriptedAgent {
 
 /** One recorded spawn of the stand-in. */
 export interface AgentInvocation {
-  kind: 'turn' | 'version'
+  kind: 'turn' | 'version' | 'approval'
+  /** `approval` only: the tool asked about, and the verdict the endpoint gave. */
+  tool?: string
+  behavior?: string
   /** Which real binary the seam replaced for this spawn (`claude`, `devin`, …). */
   command: string
   /** The `-p` prompt the app sent, when this was a turn. */

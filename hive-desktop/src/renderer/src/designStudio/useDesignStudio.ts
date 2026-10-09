@@ -25,6 +25,8 @@ export interface DesignStudioStore {
   loadedAt: number
   /** Reads the listing again — a conversation was started or answered inside the module. */
   recarregar: () => void
+  /** The module is in front — what puts the caret in the home's field on arrival (task 1, criterion 1). */
+  ativo: boolean
 }
 
 /**
@@ -87,8 +89,9 @@ export function useDesignStudio(active: boolean): DesignStudioStore {
       pageRoutes,
       conversations: listing.conversations,
       loadedAt: listing.loadedAt,
-      recarregar
+      recarregar,
+      ativo: active
     }),
-    [route, navigate, mountedPages, pageRoutes, listing, recarregar]
+    [route, navigate, mountedPages, pageRoutes, listing, recarregar, active]
   )
 }

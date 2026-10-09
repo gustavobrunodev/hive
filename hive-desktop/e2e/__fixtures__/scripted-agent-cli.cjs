@@ -41,6 +41,11 @@
 //   contextWindow number — the ceiling the CLI reports for itself, on the
 //                          result line's `modelUsage` (`--model sonnet[1m]`
 //                          moves it without changing the model id).
+//   approvals   [{tool, input}] — permission questions, asked the way the real
+//                          CLI asks them: a `tools/call` to the permission-prompt
+//                          tool named by `--mcp-config` (Hive's approval
+//                          endpoint). Each answer is logged as one
+//                          `{ kind: 'approval', tool, behavior }` line.
 // Every invocation is appended as one JSON line to HIVE_E2E_AGENT_LOG, so a
 // test can assert on disk *what the app actually asked the agent to do*.
 
@@ -134,6 +139,35 @@ function emit(line) {
 }
 
 const sessionId = script.sessionId ?? 'e2e-session'
+
+/**
+ * One permission question, the way `claude -p --permission-prompt-tool` asks
+ * it: the tool and its input, posted as a JSON-RPC `tools/call` to the server
+ * the `--mcp-config` file names, with that file's headers (the bearer token
+ * and the turn). The verdict comes back inside the result's text content.
+ */
+async function askApproval(pedido) {
+  const at = argv.indexOf('--mcp-config')
+  if (at === -1) {
+    log({ kind: 'approval', tool: pedido.tool, behavior: 'no-endpoint' })
+    return
+  }
+  const config = JSON.parse(fs.readFileSync(argv[at + 1], 'utf-8'))
+  const server = Object.values(config.mcpServers ?? {})[0]
+  const response = await fetch(server.url, {
+    method: 'POST',
+    headers: { ...server.headers, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'approve', arguments: { tool_name: pedido.tool, input: pedido.input ?? {} } }
+    })
+  })
+  const body = await response.json()
+  const verdict = JSON.parse(body.result.content[0].text)
+  log({ kind: 'approval', tool: pedido.tool, behavior: verdict.behavior })
+}
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function run() {
@@ -157,6 +191,8 @@ async function run() {
       event: { type: 'content_block_delta', delta: { type: 'text_delta', text: chunk } }
     })
   }
+
+  for (const pedido of script.approvals ?? []) await askApproval(pedido)
 
   for (const write of script.writes ?? []) {
     const target = path.resolve(process.cwd(), write.path)

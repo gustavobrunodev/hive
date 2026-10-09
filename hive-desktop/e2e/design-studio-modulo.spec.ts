@@ -189,6 +189,14 @@ test.describe('Design Studio — entrada e navegação do módulo', () => {
       expect(await hasFocusIndicator(window)).toBe(true)
       await window.keyboard.press('Enter')
       await expect.poll(() => activeDesignPage(window)).toBe('inicio')
+      // Task 1 (criterion 1): opening the module hands the caret to the home's
+      // chat field, so the row is focused again to answer its second key.
+      await expect(
+        window
+          .locator('.wb-work-layer[data-view="design"] [data-page="inicio"]')
+          .getByRole('textbox', { name: 'Mensagem para o agente' })
+      ).toBeFocused()
+      await designRow(window).focus()
       await window.keyboard.press('Space')
       await expect.poll(() => activeDesignPage(window)).toBeNull()
       await window.keyboard.press('Enter')
@@ -420,10 +428,26 @@ async function inertKeyActivation(window: Page, region: string): Promise<string[
         )
       })
       await button.focus()
+      const before = await button.getAttribute('aria-expanded')
       await window.keyboard.press(key)
-      if (!(await window.evaluate(() => (window as unknown as { __clicked: boolean }).__clicked))) {
-        unanswered.push(`${label} (${key})`)
+      if (await window.evaluate(() => (window as unknown as { __clicked: boolean }).__clicked)) {
+        continue
       }
+      // A menu trigger (Radix) answers Enter and Space on keydown, by opening
+      // its menu, and synthesises no click: the key is answered when the menu
+      // it controls opened. Escape puts it back for the next key.
+      if (before === 'false' && (await button.getAttribute('aria-expanded')) === 'true') {
+        // Escape only once the menu it controls is up to hear it — again if
+        // the first one landed while the menu was still mounting.
+        const menu = await button.getAttribute('aria-controls')
+        await expect(window.locator(`[id="${menu}"]`)).toBeVisible()
+        await expect(async () => {
+          await window.keyboard.press('Escape')
+          await expect(button).toHaveAttribute('aria-expanded', 'false', { timeout: 500 })
+        }).toPass({ timeout: 5_000 })
+        continue
+      }
+      unanswered.push(`${label} (${key})`)
     }
   }
   return unanswered

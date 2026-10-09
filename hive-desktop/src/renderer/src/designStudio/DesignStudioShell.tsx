@@ -52,7 +52,14 @@ function pageBody(
 ): ReactNode {
   switch (route.pagina) {
     case 'inicio':
-      return <InicioPage userName={userName} seal={seal} navigate={store.navigate} />
+      return (
+        <InicioPage
+          userName={userName}
+          seal={seal}
+          navigate={store.navigate}
+          focar={store.ativo && store.route.pagina === 'inicio'}
+        />
+      )
     case 'dores':
       return <DoresPage seal={seal} navigate={store.navigate} />
     case 'relatorios':

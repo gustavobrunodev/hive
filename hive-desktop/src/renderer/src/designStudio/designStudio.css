@@ -1578,6 +1578,16 @@
   border-color: var(--focus);
 }
 
+/* The text area carries its own ring while it has the focus: the frame's
+   1px change of colour alone is not an indicator anyone reads from a
+   projector (PRODUCT, "Mostrável"), and the DS composer turns the textarea's
+   own ring off. */
+.ds-campo .hds-prompt-input-textarea.hds-textarea:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rounded-md);
+}
+
 .ds-campo-espaco {
   flex: 1;
 }

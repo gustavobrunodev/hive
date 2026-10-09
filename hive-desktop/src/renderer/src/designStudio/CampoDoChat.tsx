@@ -33,6 +33,8 @@ export interface CampoDoChatProps {
   bloqueado?: boolean
   onEnviar: (envio: ParteDoEnvio) => void
   onParar?: () => void
+  /** Takes the caret whenever this turns true — the home on arrival (criterion 1). */
+  focar?: boolean
 }
 
 /** The row under the text: `+`, then who answers and on which model, then the microphone. */
@@ -122,8 +124,13 @@ function Transporte({ voice }: { voice: AsrDictation }): React.JSX.Element {
 export function CampoDoChat(props: CampoDoChatProps): React.JSX.Element {
   const { campo: campoId, produto, modo, agente, onAgente, respondendo, onEnviar, onParar } = props
   const bloqueado = props.bloqueado === true
+  const focar = props.focar === true
   const dados = useDesignData()
   const campo = useCampo(campoId, dados)
+  const { textareaRef } = campo
+  useEffect(() => {
+    if (focar) textareaRef.current?.focus()
+  }, [focar, textareaRef])
   const listaId = useId()
   const voice = useAsrDictation({
     value: campo.texto,
