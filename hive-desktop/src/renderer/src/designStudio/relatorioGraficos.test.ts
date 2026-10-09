@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
-import { activePage, relatorio, renderModule, stubBridge } from './__tests__/fixtures'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import {
+  activePage,
+  prepararDom,
+  relatorio,
+  renderModule,
+  renderModuloVivo,
+  stubBridge
+} from './__tests__/fixtures'
 
 /**
  * P12 — the Relatório as charts (criteria 26–27): the Leitura | Gráficos
@@ -179,5 +186,44 @@ describe('Gráficos edges', () => {
     fireEvent.focus(s)
     fireEvent.keyDown(s, { key: 'Home' })
     expect(s.getAttribute('aria-valuetext')).toBe('6 jul: 40')
+  })
+})
+
+describe('an insight asks the agent (task 1)', () => {
+  it('1-C20: "Perguntar ao agente" of an insight opens a conversa do Produto with "O que está por trás de “<título>” em <categoria>?", about the category’s heaviest Dor and citing it', async () => {
+    prepararDom()
+    const bridge = stubBridge({
+      relatorios: [
+        relatorio('Câmbio', 'likert', [
+          { titulo: 'Dor A1', categoria: 'a', volume: 400 },
+          { titulo: 'Dor B1', categoria: 'b', volume: 300 },
+          { titulo: 'Dor A2', categoria: 'a', volume: 200 },
+          { titulo: 'Dor B2', categoria: 'b', volume: 900 }
+        ])
+      ]
+    })
+    renderModuloVivo({ pagina: 'relatorio', relatorio: CAMINHO })
+    await screen.findByRole('radiogroup', { name: 'Visão do Relatório' })
+    fireEvent.click(screen.getByRole('radio', { name: 'Gráficos' }))
+    const insight = (await screen.findAllByRole('article')).find(
+      (article) => within(article).queryByRole('heading', { name: 'Categoria B' }) !== null
+    ) as HTMLElement
+    fireEvent.click(within(insight).getByRole('button', { name: 'Perguntar ao agente' }))
+
+    await waitFor(() => expect(activePage().dataset.page).toBe('conversa'))
+    // "Dor B1" is Categoria B's best-ranked Dor — B2 has more volume but ranks lower.
+    expect(bridge.conversa.planejarConversa).toHaveBeenCalledWith(
+      expect.objectContaining({
+        produto: 'Câmbio',
+        conversa: null,
+        texto: 'O que está por trás de “Dor B1” em Categoria B?',
+        citadas: [{ relatorio: CAMINHO, dor: 'likert-2' }]
+      })
+    )
+    const conversa = activePage()
+    expect(
+      within(conversa).getByText('O que está por trás de “Dor B1” em Categoria B?')
+    ).toBeTruthy()
+    expect(within(conversa).getByRole('button', { name: 'Abrir a Dor “Dor B1”' })).toBeTruthy()
   })
 })

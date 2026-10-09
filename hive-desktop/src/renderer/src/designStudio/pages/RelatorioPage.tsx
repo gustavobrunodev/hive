@@ -152,7 +152,7 @@ function RelatorioAberto({
       {vista === 'leitura' ? (
         <RelatorioLeitura relatorio={relatorio} />
       ) : (
-        <RelatorioGraficos relatorio={relatorio} />
+        <RelatorioGraficos relatorio={relatorio} navigate={navigate} />
       )}
     </div>
   )

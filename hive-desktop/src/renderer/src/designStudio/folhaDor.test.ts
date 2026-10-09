@@ -1,8 +1,17 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { relatorio, renderModule, storeAt, stubBridge } from './__tests__/fixtures'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import {
+  activePage,
+  camada,
+  prepararDom,
+  relatorio,
+  renderModule,
+  renderModuloVivo,
+  storeAt,
+  stubBridge
+} from './__tests__/fixtures'
 import { DesignStudioShell } from './DesignStudioShell'
 import { FolhaDor } from './FolhaDor'
 import { ModuleDataContext, type ModuleData } from './moduleData'
@@ -356,5 +365,97 @@ describe('the folha’s edges', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }))
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     }
+  })
+})
+
+/** The folha's two ways to the chat (task 1, S4), in the module's real store. */
+describe('the folha reaches the chat', () => {
+  async function abrirDoresVivo(): Promise<ReturnType<typeof stubBridge>> {
+    prepararDom()
+    const bridge = stubBridge({ relatorios: RELATORIOS })
+    renderModuloVivo({ pagina: 'dores' })
+    await waitFor(() => expect(activePage().dataset.page).toBe('dores'))
+    await within(activePage()).findByRole('heading', { level: 1, name: 'Dores de Câmbio' })
+    return bridge
+  }
+
+  function notaEm(pagina: HTMLElement, titulo: string): HTMLElement {
+    const el = Array.from(pagina.querySelectorAll<HTMLElement>('.hds-note')).find(
+      (n) => n.querySelector('.hds-note-title')?.textContent === titulo
+    )
+    if (!el) throw new Error(`no note "${titulo}"`)
+    return el
+  }
+
+  it('1-C19a: opened from Dores, "Citar no chat" puts the Dor’s chip in the home’s field and closes the folha', async () => {
+    await abrirDoresVivo()
+    fireEvent.click(notaEm(activePage(), 'As taxas aparecem só no final'))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: /Citar no chat/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(activePage().dataset.page).toBe('inicio'))
+    const contexto = camada('inicio').querySelector('.ds-campo-contexto') as HTMLElement
+    expect(within(contexto).getByText('As taxas aparecem só no final')).toBeTruthy()
+  })
+
+  it('1-C19b: with a conversa do Produto open, the folha’s citation goes into that conversation’s field', async () => {
+    const bridge = await abrirDoresVivo()
+    fireEvent.click(screen.getByRole('button', { name: 'Início' }))
+    await waitFor(() => expect(activePage().dataset.page).toBe('inicio'))
+    const inicio = activePage()
+    await waitFor(() =>
+      expect(within(inicio).getByRole('button', { name: /^Agente da conversa:/ })).toBeTruthy()
+    )
+    const campo = within(inicio).getByRole('textbox', { name: 'Mensagem para o agente' })
+    fireEvent.change(campo, { target: { value: 'Quais Dores crescem mais?' } })
+    fireEvent.keyDown(campo, { key: 'Enter' })
+    await waitFor(() => expect(activePage().dataset.page).toBe('conversa'))
+    const conversa = activePage()
+    const plano = await (bridge.conversa.planejarConversa as ReturnType<typeof vi.fn>).mock
+      .results[0]?.value
+    await act(async () => {
+      bridge.emitirConversa({
+        turnId: plano.turnId,
+        produto: 'Câmbio',
+        conversa: plano.conversa,
+        estado: 'pronto',
+        texto: 'Veja [[dor:likert-2]].',
+        agente: 'claude-cli',
+        modelo: 'sonnet'
+      })
+    })
+    fireEvent.click(
+      within(conversa).getByRole('button', { name: 'Abrir a Dor “As taxas aparecem só no final”' })
+    )
+    const dialog = await screen.findByRole('dialog')
+    // On a conversation the action says where the Dor goes: "Citar nesta conversa".
+    fireEvent.click(within(dialog).getByRole('button', { name: /Citar nesta conversa/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(activePage()).toBe(conversa)
+    const contexto = conversa.querySelector('.ds-campo-contexto') as HTMLElement
+    expect(within(contexto).getByText('As taxas aparecem só no final')).toBeTruthy()
+    expect(camada('inicio').querySelector('.ds-campo-contexto')).toBeNull()
+  })
+
+  it('1-C19c: "Perguntar ao agente" opens a conversa do Produto with "Me explique a Dor “<título>” e o que você mudaria primeiro.", already citing the Dor', async () => {
+    const bridge = await abrirDoresVivo()
+    fireEvent.click(notaEm(activePage(), 'As taxas aparecem só no final'))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: /Perguntar ao agente/ }))
+    await waitFor(() => expect(activePage().dataset.page).toBe('conversa'))
+    const texto = 'Me explique a Dor “As taxas aparecem só no final” e o que você mudaria primeiro.'
+    expect(bridge.conversa.planejarConversa).toHaveBeenCalledWith(
+      expect.objectContaining({
+        produto: 'Câmbio',
+        conversa: null,
+        texto,
+        citadas: [{ relatorio: 'Câmbio/relatorios/likert/2026-10-04-90d.md', dor: 'likert-2' }]
+      })
+    )
+    const conversa = activePage()
+    expect(within(conversa).getByText(texto)).toBeTruthy()
+    expect(
+      within(conversa).getByRole('button', { name: 'Abrir a Dor “As taxas aparecem só no final”' })
+    ).toBeTruthy()
   })
 })

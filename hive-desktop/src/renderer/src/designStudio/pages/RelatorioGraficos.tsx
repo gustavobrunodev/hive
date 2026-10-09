@@ -2,7 +2,10 @@ import { useId, useState } from 'react'
 import { BarChart, Button, LineChart, SegmentedControl } from '@hive/design-system'
 import { t } from '../../i18n'
 import { agentIcon } from '../../ui/agentVisuals'
+import { ChatBubbleIcon } from '../../ui/icons'
+import { dorDeMaiorPeso } from '../conversaModel'
 import { useDesignData } from '../moduleData'
+import type { DesignRoute } from '../routes'
 import {
   insightsOrder,
   pct,
@@ -36,9 +39,12 @@ function windowTrend(semanas: readonly number[]): number {
  * of the category in emphasis, and the agent's insight for every category.
  */
 export function RelatorioGraficos({
-  relatorio
+  relatorio,
+  navigate
 }: {
   relatorio: RelatorioDeFonte
+  /** Where "Perguntar ao agente" of an insight goes: the home, which sends the question (criterion 20). */
+  navigate?: (route: DesignRoute) => void
 }): React.JSX.Element {
   const dados = useDesignData()
   const [dias, setDias] = useState<Dias>(90)
@@ -135,7 +141,7 @@ export function RelatorioGraficos({
           <Linha relatorio={relatorio} recorte={recorte} unidade={unidadeDor} />
         </div>
       </div>
-      <Insights relatorio={relatorio} recorte={recorte} />
+      <Insights relatorio={relatorio} recorte={recorte} navigate={navigate} />
     </div>
   )
 }
@@ -226,12 +232,27 @@ function Linha({
 /** "Insights por categoria" (criterion 27): the agent's reading of each, the one in focus marked. */
 function Insights({
   relatorio,
-  recorte
+  recorte,
+  navigate
 }: {
   relatorio: RelatorioDeFonte
   recorte: Recorte
+  navigate?: (route: DesignRoute) => void
 }): React.JSX.Element {
   const headingId = useId()
+  const dados = useDesignData()
+  // `perguntar-categoria` (`graficos.js`): about the category's heaviest Dor,
+  // already citing it — sent from the home, like the folha's question.
+  const perguntar = (categoria: CategoriaNaJanela): void => {
+    const dor = dorDeMaiorPeso(relatorio, categoria.categoria.id)
+    if (dor === null) return
+    dados.rascunhos.perguntar({
+      produto: relatorio.produto,
+      citacao: { relatorio: relatorio.caminho, dor: dor.id },
+      texto: t('designStudio.graficos.pergunta', dor.titulo, categoria.categoria.nome)
+    })
+    navigate?.({ pagina: 'inicio' })
+  }
   const AgentLogo = agentIcon(agentIdOf(relatorio.geradoPor.agente))
   return (
     <section className="ds-card ds-insights" aria-labelledby={headingId}>
@@ -270,6 +291,17 @@ function Insights({
               <span>{relatorio.geradoPor.agente}</span>
             </p>
             <p>{entry.categoria.insight}</p>
+            <div className="ds-insight-acoes">
+              <Button
+                cut={false}
+                variant="ghost"
+                className="wb-btn wb-btn-sm ds-btn-sec"
+                onClick={() => perguntar(entry)}
+              >
+                <ChatBubbleIcon size={14} />
+                {t('designStudio.graficos.perguntar')}
+              </Button>
+            </div>
           </div>
         </article>
       ))}
